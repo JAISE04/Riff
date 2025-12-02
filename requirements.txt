@@ -1,0 +1,64 @@
+# Riff - Spotify & YouTube to MP3 Converter
+# Node.js Dependencies (install with: npm install)
+# 
+# This file lists all dependencies for documentation purposes.
+# For Node.js projects, run `npm install` to install from package.json files.
+
+# ============================================
+# ROOT DEPENDENCIES
+# ============================================
+concurrently@^8.2.2          # Run multiple commands concurrently
+
+# ============================================
+# BACKEND DEPENDENCIES (backend/package.json)
+# ============================================
+@distube/ytdl-core@^4.16.12  # YouTube video downloader (core library)
+archiver@^7.0.1              # ZIP file creation for playlist downloads
+axios@^1.6.2                 # HTTP client for API requests
+cors@^2.8.5                  # Cross-Origin Resource Sharing middleware
+dotenv@^16.3.1               # Environment variable loader
+express@^4.18.2              # Web server framework
+fluent-ffmpeg@^2.1.2         # FFmpeg wrapper for audio processing
+node-id3@^0.2.6              # MP3 ID3 tag writer (metadata)
+play-dl@^1.9.7               # YouTube/Spotify streaming library
+uuid@^9.0.1                  # Unique ID generator
+youtube-dl-exec@^3.0.27      # yt-dlp wrapper for YouTube downloads
+yt-search@^2.10.4            # YouTube search API
+
+# Backend Dev Dependencies
+nodemon@^3.0.2               # Auto-restart server on file changes
+
+# ============================================
+# FRONTEND DEPENDENCIES (frontend/package.json)
+# ============================================
+react@^18.2.0                # React library
+react-dom@^18.2.0            # React DOM renderer
+
+# Frontend Dev Dependencies
+@types/react@^18.2.43        # TypeScript types for React
+@types/react-dom@^18.2.17    # TypeScript types for React DOM
+@vitejs/plugin-react@^4.2.1  # Vite plugin for React
+autoprefixer@^10.4.16        # PostCSS plugin for vendor prefixes
+postcss@^8.4.32              # CSS post-processor
+tailwindcss@^3.3.6           # Utility-first CSS framework
+vite@^5.0.8                  # Frontend build tool
+
+# ============================================
+# EXTERNAL REQUIREMENTS (must be installed separately)
+# ============================================
+# FFmpeg - Required for audio conversion
+#   Windows: winget install Gyan.FFmpeg
+#   macOS: brew install ffmpeg
+#   Linux: sudo apt install ffmpeg
+#
+# Node.js v18+ - Required runtime
+#   Download from: https://nodejs.org/
+
+# ============================================
+# INSTALLATION
+# ============================================
+# 1. Install Node.js v18 or higher
+# 2. Install FFmpeg
+# 3. Run: npm install (in root directory)
+# 4. Copy backend/.env.example to backend/.env and add your Spotify API credentials
+# 5. Run: npm run dev

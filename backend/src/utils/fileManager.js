@@ -68,3 +68,9 @@ export function formatFileSize(bytes) {
 
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
 }
+
+// Get temp directory path
+export function getTempDir() {
+  const tempPath = process.env.TEMP_FILES_PATH || "./temp";
+  return path.resolve(tempPath);
+}

@@ -1,5 +1,74 @@
 import yts from "yt-search";
 
+// Get metadata for a specific YouTube video by ID
+export async function getYouTubeMetadata(videoId) {
+  try {
+    const result = await yts({ videoId });
+
+    if (!result) {
+      throw new Error("Video not found");
+    }
+
+    // Extract artist and title from video title
+    let title = result.title;
+    let artist = result.author?.name || "Unknown Artist";
+
+    // Try to parse "Artist - Title" format
+    const patterns = [
+      /^(.+?)\s*[-–—]\s*(.+)$/, // "Artist - Title"
+      /^(.+?)\s*[|]\s*(.+)$/, // "Artist | Title"
+    ];
+
+    for (const pattern of patterns) {
+      const match = result.title.match(pattern);
+      if (match) {
+        // Clean up artist name
+        const potentialArtist = match[1]
+          .trim()
+          .replace(
+            /\s*(official|audio|video|music|lyrics|hd|hq|4k|vevo)\s*/gi,
+            ""
+          )
+          .trim();
+        const potentialTitle = match[2]
+          .trim()
+          .replace(/\s*[\(\[].*?[\)\]]\s*/g, "") // Remove parenthetical info
+          .replace(/\s*(official|audio|video|music|lyrics|hd|hq|4k)\s*/gi, "")
+          .trim();
+
+        if (potentialArtist && potentialTitle) {
+          artist = potentialArtist;
+          title = potentialTitle;
+          break;
+        }
+      }
+    }
+
+    // Clean up title if no pattern matched
+    if (title === result.title) {
+      title = title
+        .replace(/\s*[\(\[].*?[\)\]]\s*/g, "") // Remove parenthetical info
+        .replace(/\s*(official|audio|video|music|lyrics|hd|hq|4k)\s*/gi, "")
+        .trim();
+    }
+
+    console.log(`YouTube metadata: "${title}" by "${artist}"`);
+
+    return {
+      title,
+      artist,
+      album: "YouTube",
+      coverUrl:
+        result.thumbnail ||
+        `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`,
+      duration: result.seconds ? result.seconds * 1000 : null,
+    };
+  } catch (error) {
+    console.error("Error fetching YouTube metadata:", error.message);
+    throw new Error("Failed to fetch video information");
+  }
+}
+
 // Find the best YouTube match for a Spotify track
 export async function findYouTubeMatch(metadata) {
   const { title, artist, duration } = metadata;

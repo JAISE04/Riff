@@ -1,5 +1,6 @@
 export default function ConversionProgress({ data }) {
-  const { step, progress, metadata } = data;
+  const { step, progress, metadata, playlistInfo } = data;
+  const isPlaylist = metadata?.isPlaylist || playlistInfo;
 
   return (
     <div className="space-y-6">
@@ -26,11 +27,34 @@ export default function ConversionProgress({ data }) {
           <div className="flex-1 min-w-0">
             <h3 className="font-semibold text-white truncate">
               {metadata.title}
+              {isPlaylist && (
+                <span className="ml-2 text-xs bg-spotify-green/20 text-spotify-green px-2 py-0.5 rounded-full">
+                  Playlist
+                </span>
+              )}
             </h3>
             <p className="text-sm text-spotify-gray truncate">
               {metadata.artist}
             </p>
+            {isPlaylist && playlistInfo && (
+              <p className="text-xs text-spotify-gray mt-1">
+                {playlistInfo.completedTracks || 0} / {playlistInfo.totalTracks} tracks downloaded
+                {playlistInfo.failedTracks > 0 && (
+                  <span className="text-red-400 ml-2">
+                    ({playlistInfo.failedTracks} failed)
+                  </span>
+                )}
+              </p>
+            )}
           </div>
+        </div>
+      )}
+
+      {/* Playlist Current Track */}
+      {isPlaylist && playlistInfo?.currentTrack && (
+        <div className="bg-spotify-lightGray/50 rounded-xl p-3 text-sm">
+          <p className="text-spotify-gray">Currently downloading:</p>
+          <p className="text-white truncate">{playlistInfo.currentTrack}</p>
         </div>
       )}
 
@@ -73,7 +97,10 @@ export default function ConversionProgress({ data }) {
         <div className="text-center space-y-1">
           <p className="text-white font-medium">{step}</p>
           <p className="text-spotify-gray text-sm">
-            This usually takes 5-10 seconds
+            {isPlaylist 
+              ? "This may take a few minutes depending on playlist size"
+              : "This usually takes 5-10 seconds"
+            }
           </p>
         </div>
 
@@ -88,20 +115,37 @@ export default function ConversionProgress({ data }) {
         </div>
 
         {/* Step Indicators */}
-        <div className="flex justify-between text-xs text-spotify-gray pt-2">
-          <span className={progress >= 10 ? "text-spotify-green" : ""}>
-            Metadata
-          </span>
-          <span className={progress >= 35 ? "text-spotify-green" : ""}>
-            Source
-          </span>
-          <span className={progress >= 60 ? "text-spotify-green" : ""}>
-            Convert
-          </span>
-          <span className={progress >= 100 ? "text-spotify-green" : ""}>
-            Ready
-          </span>
-        </div>
+        {isPlaylist ? (
+          <div className="flex justify-between text-xs text-spotify-gray pt-2">
+            <span className={progress >= 5 ? "text-spotify-green" : ""}>
+              Fetch
+            </span>
+            <span className={progress >= 10 ? "text-spotify-green" : ""}>
+              Download
+            </span>
+            <span className={progress >= 90 ? "text-spotify-green" : ""}>
+              Zip
+            </span>
+            <span className={progress >= 100 ? "text-spotify-green" : ""}>
+              Ready
+            </span>
+          </div>
+        ) : (
+          <div className="flex justify-between text-xs text-spotify-gray pt-2">
+            <span className={progress >= 10 ? "text-spotify-green" : ""}>
+              Metadata
+            </span>
+            <span className={progress >= 35 ? "text-spotify-green" : ""}>
+              Source
+            </span>
+            <span className={progress >= 60 ? "text-spotify-green" : ""}>
+              Convert
+            </span>
+            <span className={progress >= 100 ? "text-spotify-green" : ""}>
+              Ready
+            </span>
+          </div>
+        )}
       </div>
     </div>
   );
