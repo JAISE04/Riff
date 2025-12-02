@@ -6,6 +6,8 @@ import axios from "axios";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import os from "os";
+
 
 const execAsync = promisify(exec);
 
@@ -27,11 +29,33 @@ const YT_DLP_PATH = path.join(
 // FFmpeg path - try environment variable first, then common locations
 const FFMPEG_PATH =
   process.env.FFMPEG_PATH ||
-  "C:\\Users\\jaise\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.0.1-full_build\\bin\\ffmpeg.exe";
+  path.join(
+    os.homedir(),
+    "AppData",
+    "Local",
+    "Microsoft",
+    "WinGet",
+    "Packages",
+    "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
+    "ffmpeg-8.0.1-full_build",
+    "bin",
+    "ffmpeg.exe"
+  );
 
 const FFPROBE_PATH =
   process.env.FFPROBE_PATH ||
-  "C:\\Users\\jaise\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe\\ffmpeg-8.0.1-full_build\\bin\\ffprobe.exe";
+  path.join(
+    os.homedir(),
+    "AppData",
+    "Local",
+    "Microsoft",
+    "WinGet",
+    "Packages",
+    "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
+    "ffmpeg-8.0.1-full_build",
+    "bin",
+    "ffprobe.exe"
+  );
 
 // Set FFmpeg paths for fluent-ffmpeg
 ffmpegLib.setFfmpegPath(FFMPEG_PATH);
@@ -41,6 +65,11 @@ ffmpegLib.setFfprobePath(FFPROBE_PATH);
 if (!fs.existsSync(TEMP_PATH)) {
   fs.mkdirSync(TEMP_PATH, { recursive: true });
 }
+
+// Helper to sanitize filenames
+// function sanitizeFilename(name) {
+//   return name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
+// }
 
 // Download audio from YouTube and convert to MP3
 export async function downloadAndConvert(
@@ -55,8 +84,10 @@ export async function downloadAndConvert(
   console.log(`Starting download for video: ${videoId}`);
   console.log(`Video URL: ${videoUrl}`);
 
-  const tempAudioPath = path.join(TEMP_PATH, `${jobId}_temp.webm`);
-  const outputPath = path.join(TEMP_PATH, `${jobId}.mp3`);
+  // Use sanitized title for filename, fallback to jobId if title is missing
+  const safeTitle = metadata.title ? metadata.title : jobId;
+  const tempAudioPath = path.join(TEMP_PATH, `${safeTitle}_temp.webm`);
+  const outputPath = path.join(TEMP_PATH, `${safeTitle}.mp3`);
 
   try {
     onProgress(10);
@@ -80,9 +111,6 @@ export async function downloadAndConvert(
     if (fs.existsSync(tempAudioPath)) {
       fs.unlinkSync(tempAudioPath);
     }
-    if (fs.existsSync(tempAudioPath)) {
-      fs.unlinkSync(tempAudioPath);
-    }
 
     // Add ID3 tags
     await tagMP3File(outputPath, metadata);
@@ -92,7 +120,7 @@ export async function downloadAndConvert(
     const stats = fs.statSync(outputPath);
 
     return {
-      filename: `${jobId}.mp3`,
+      filename: `${safeTitle}.mp3`,
       path: outputPath,
       fileSize: stats.size,
     };

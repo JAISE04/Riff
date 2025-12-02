@@ -47,10 +47,9 @@ export default function SpotifyInput({
       <div
         className={`
           relative rounded-2xl transition-all duration-300
-          ${
-            isFocused
-              ? "ring-2 ring-spotify-green shadow-lg shadow-spotify-green/20"
-              : ""
+          ${isFocused
+            ? "ring-2 ring-spotify-green shadow-lg shadow-spotify-green/20"
+            : ""
           }
           ${error ? "ring-2 ring-red-500" : ""}
         `}
@@ -59,9 +58,8 @@ export default function SpotifyInput({
           {/* Spotify Icon */}
           <div className="pl-4 pr-2">
             <svg
-              className={`w-5 h-5 transition-colors ${
-                value && isValid ? "text-spotify-green" : "text-spotify-gray"
-              }`}
+              className={`w-5 h-5 transition-colors ${value && isValid ? "text-spotify-green" : "text-spotify-gray"
+                }`}
               viewBox="0 0 24 24"
               fill="currentColor"
             >
@@ -159,10 +157,9 @@ export default function SpotifyInput({
         className={`
           w-full py-4 px-6 rounded-full font-semibold text-base
           transition-all duration-300 transform
-          ${
-            isValid
-              ? "bg-spotify-green hover:bg-spotify-greenDark text-black hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-spotify-green/25"
-              : "bg-spotify-lightGray text-spotify-gray cursor-not-allowed"
+          ${isValid
+            ? "bg-spotify-green hover:bg-spotify-greenDark text-black hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-spotify-green/25"
+            : "bg-spotify-lightGray text-spotify-gray cursor-not-allowed"
           }
         `}
       >
