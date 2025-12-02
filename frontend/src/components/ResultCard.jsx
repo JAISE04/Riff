@@ -1,7 +1,8 @@
 import { formatFileSize } from "../services/api";
 
 export default function ResultCard({ data, onDownload, onReset }) {
-  const { metadata, downloadUrl, filename, fileSize, quality } = data;
+  const { metadata, downloadUrl, filename, fileSize, quality, playlistInfo } = data;
+  const isPlaylist = metadata?.isPlaylist || playlistInfo;
 
   const handleDownloadClick = (e) => {
     // Don't prevent default - let the download happen
@@ -56,14 +57,31 @@ export default function ResultCard({ data, onDownload, onReset }) {
           <div>
             <h2 className="text-xl font-bold text-white truncate">
               {metadata?.title || "Unknown Track"}
+              {isPlaylist && (
+                <span className="ml-2 text-sm bg-spotify-green/20 text-spotify-green px-2 py-0.5 rounded-full">
+                  Playlist
+                </span>
+              )}
             </h2>
             <p className="text-spotify-gray truncate">
               {metadata?.artist || "Unknown Artist"}
             </p>
-            {metadata?.album && (
+            {metadata?.album && !isPlaylist && (
               <p className="text-spotify-gray text-sm truncate mt-1">
                 {metadata.album}
               </p>
+            )}
+            {isPlaylist && playlistInfo && (
+              <div className="mt-2 text-sm">
+                <p className="text-spotify-green">
+                  ✓ {playlistInfo.completedTracks} tracks downloaded
+                </p>
+                {playlistInfo.failedTracks > 0 && (
+                  <p className="text-red-400">
+                    ✗ {playlistInfo.failedTracks} tracks failed
+                  </p>
+                )}
+              </div>
             )}
           </div>
 
@@ -93,7 +111,7 @@ export default function ResultCard({ data, onDownload, onReset }) {
               <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
                 <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
               </svg>
-              <span>MP3</span>
+              <span>{isPlaylist ? "ZIP" : "MP3"}</span>
             </div>
           </div>
 
@@ -118,7 +136,7 @@ export default function ResultCard({ data, onDownload, onReset }) {
                   d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
                 />
               </svg>
-              Download MP3
+              {isPlaylist ? "Download ZIP" : "Download MP3"}
             </span>
           </a>
         </div>
@@ -129,7 +147,7 @@ export default function ResultCard({ data, onDownload, onReset }) {
         onClick={onReset}
         className="w-full py-3 px-6 bg-transparent border border-spotify-gray text-white font-medium rounded-full hover:bg-spotify-lightGray transition-colors"
       >
-        Convert Another Track
+        {isPlaylist ? "Convert Another Playlist" : "Convert Another Track"}
       </button>
     </div>
   );
