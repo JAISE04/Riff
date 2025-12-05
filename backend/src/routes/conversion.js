@@ -3,18 +3,19 @@ import { v4 as uuidv4 } from "uuid";
 import path from "path";
 import fs from "fs";
 import archiver from "archiver";
-import { getSpotifyMetadata, getPlaylistMetadata } from "../services/spotifyService.js";
+import {
+  getSpotifyMetadata,
+  getPlaylistMetadata,
+} from "../services/spotifyService.js";
 import {
   findYouTubeMatch,
   getYouTubeMetadata,
 } from "../services/youtubeService.js";
 import { downloadAndConvert } from "../services/conversionService.js";
 import { getDownloadUrl, getTempDir } from "../utils/fileManager.js";
+import { jobStore } from "../utils/database.js";
 
 const router = express.Router();
-
-// Store conversion jobs in memory (use Redis for production)
-const conversionJobs = new Map();
 
 // Detect URL type
 function detectUrlType(url) {
@@ -60,21 +61,21 @@ router.post("/convert", async (req, res) => {
   if (!urlInfo) {
     return res.status(400).json({
       error: "Invalid URL",
-      message: "Please provide a valid Spotify track/playlist or YouTube video URL",
+      message:
+        "Please provide a valid Spotify track/playlist or YouTube video URL",
     });
   }
 
   const jobId = uuidv4();
 
-  // Initialize job status
-  conversionJobs.set(jobId, {
+  // Create job in SQLite database
+  jobStore.create({
     id: jobId,
     status: "pending",
     step: "Initializing...",
     progress: 0,
     urlType: urlInfo.type,
     sourceId: urlInfo.id,
-    createdAt: Date.now(),
   });
 
   res.json({
@@ -96,7 +97,7 @@ router.post("/convert", async (req, res) => {
 // Check conversion status
 router.get("/status/:jobId", (req, res) => {
   const { jobId } = req.params;
-  const job = conversionJobs.get(jobId);
+  const job = jobStore.get(jobId);
 
   if (!job) {
     return res.status(404).json({
@@ -108,13 +109,16 @@ router.get("/status/:jobId", (req, res) => {
   res.json(job);
 });
 
+// Get server stats (for monitoring)
+router.get("/stats", (req, res) => {
+  const stats = jobStore.getStats();
+  res.json(stats);
+});
+
 // Process conversion in background
 async function processSpotifyConversion(jobId, trackId, spotifyUrl) {
   const updateJob = (updates) => {
-    const job = conversionJobs.get(jobId);
-    if (job) {
-      conversionJobs.set(jobId, { ...job, ...updates });
-    }
+    jobStore.update(jobId, updates);
   };
 
   try {
@@ -219,10 +223,7 @@ async function processSpotifyConversion(jobId, trackId, spotifyUrl) {
       completedAt: Date.now(),
     });
 
-    // Auto-cleanup job after 30 minutes
-    setTimeout(() => {
-      conversionJobs.delete(jobId);
-    }, 30 * 60 * 1000);
+    // Job auto-cleanup handled by SQLite database
   } catch (error) {
     console.error("Conversion error:", error);
     updateJob({
@@ -237,10 +238,7 @@ async function processSpotifyConversion(jobId, trackId, spotifyUrl) {
 // Process YouTube conversion
 async function processYouTubeConversion(jobId, videoId, youtubeUrl) {
   const updateJob = (updates) => {
-    const job = conversionJobs.get(jobId);
-    if (job) {
-      conversionJobs.set(jobId, { ...job, ...updates });
-    }
+    jobStore.update(jobId, updates);
   };
 
   try {
@@ -302,10 +300,7 @@ async function processYouTubeConversion(jobId, videoId, youtubeUrl) {
       completedAt: Date.now(),
     });
 
-    // Auto-cleanup job after 30 minutes
-    setTimeout(() => {
-      conversionJobs.delete(jobId);
-    }, 30 * 60 * 1000);
+    // Job auto-cleanup handled by SQLite database
   } catch (error) {
     console.error("YouTube conversion error:", error);
     updateJob({
@@ -317,18 +312,18 @@ async function processYouTubeConversion(jobId, videoId, youtubeUrl) {
   }
 }
 
-// Process Spotify Playlist conversion
+// Process Spotify Playlist conversion with PARALLEL downloads
 async function processPlaylistConversion(jobId, playlistId, spotifyUrl) {
   const updateJob = (updates) => {
-    const job = conversionJobs.get(jobId);
-    if (job) {
-      conversionJobs.set(jobId, { ...job, ...updates });
-    }
+    jobStore.update(jobId, updates);
   };
 
   const tempDir = getTempDir();
   const playlistDir = path.join(tempDir, `playlist-${jobId}`);
   const downloadedFiles = [];
+
+  // Concurrency settings
+  const CONCURRENT_DOWNLOADS = 4; // Number of parallel downloads
 
   try {
     // Create playlist directory
@@ -357,30 +352,19 @@ async function processPlaylistConversion(jobId, playlistId, spotifyUrl) {
         totalTracks: playlist.totalTracks,
         completedTracks: 0,
         failedTracks: 0,
+        inProgress: 0,
       },
     });
 
-    // Step 2: Process each track
+    // Step 2: Process tracks in parallel batches
     let completedTracks = 0;
     let failedTracks = 0;
+    let inProgress = 0;
     const failedTrackNames = [];
+    const trackResults = new Array(playlist.tracks.length).fill(null);
 
-    for (let i = 0; i < playlist.tracks.length; i++) {
-      const track = playlist.tracks[i];
-      const trackProgress = 10 + Math.floor((i / playlist.tracks.length) * 80);
-
-      updateJob({
-        step: `Downloading: ${track.title} (${i + 1}/${playlist.totalTracks})`,
-        progress: trackProgress,
-        playlistInfo: {
-          name: playlist.name,
-          totalTracks: playlist.totalTracks,
-          completedTracks,
-          failedTracks,
-          currentTrack: track.title,
-        },
-      });
-
+    // Helper function to download a single track
+    const downloadTrack = async (track, index) => {
       try {
         // Find YouTube match
         const youtubeMatch = await findYouTubeMatch({
@@ -397,41 +381,107 @@ async function processPlaylistConversion(jobId, playlistId, spotifyUrl) {
         const result = await downloadAndConvert(
           youtubeMatch,
           track,
-          `${jobId}-track-${i}`,
+          `${jobId}-track-${index}`,
           () => {} // No progress callback for individual tracks
         );
 
         // Move file to playlist directory with proper name
-        const sanitizedName = `${track.artist} - ${track.title}.mp3`
+        const sanitizedName = `${String(index + 1).padStart(2, "0")} - ${
+          track.artist
+        } - ${track.title}.mp3`
           .replace(/[<>:"/\\|?*]/g, "")
           .replace(/\s+/g, " ")
           .trim();
         const newFilePath = path.join(playlistDir, sanitizedName);
-        
+
         // Copy the file to playlist directory
         const originalPath = path.join(tempDir, result.filename);
         fs.copyFileSync(originalPath, newFilePath);
         fs.unlinkSync(originalPath); // Remove original
-        
-        downloadedFiles.push(newFilePath);
-        completedTracks++;
+
+        return { success: true, filePath: newFilePath, index };
       } catch (trackError) {
-        console.error(`Failed to download track ${track.title}:`, trackError.message);
-        failedTracks++;
-        failedTrackNames.push(track.title);
+        console.error(
+          `Failed to download track ${track.title}:`,
+          trackError.message
+        );
+        return { success: false, trackName: track.title, index };
       }
+    };
 
-      updateJob({
-        playlistInfo: {
-          name: playlist.name,
-          totalTracks: playlist.totalTracks,
-          completedTracks,
-          failedTracks,
-        },
-      });
+    // Process tracks in parallel with concurrency limit
+    const processInBatches = async () => {
+      const queue = playlist.tracks.map((track, index) => ({ track, index }));
+      const activePromises = new Map();
 
-      // Small delay to avoid rate limiting
-      await new Promise(resolve => setTimeout(resolve, 500));
+      const updateProgress = () => {
+        const overallProgress =
+          10 +
+          Math.floor(
+            ((completedTracks + failedTracks) / playlist.tracks.length) * 80
+          );
+        const currentTracks = Array.from(activePromises.values())
+          .map((t) => t.title)
+          .slice(0, 3);
+
+        updateJob({
+          step: `Downloading ${inProgress} tracks... (${
+            completedTracks + failedTracks
+          }/${playlist.totalTracks})`,
+          progress: overallProgress,
+          playlistInfo: {
+            name: playlist.name,
+            totalTracks: playlist.totalTracks,
+            completedTracks,
+            failedTracks,
+            inProgress,
+            currentTracks: currentTracks.join(", "),
+          },
+        });
+      };
+
+      while (queue.length > 0 || activePromises.size > 0) {
+        // Start new downloads up to concurrency limit
+        while (queue.length > 0 && activePromises.size < CONCURRENT_DOWNLOADS) {
+          const { track, index } = queue.shift();
+          inProgress++;
+          updateProgress();
+
+          const promise = downloadTrack(track, index).then((result) => {
+            activePromises.delete(index);
+            inProgress--;
+
+            if (result.success) {
+              completedTracks++;
+              trackResults[result.index] = result.filePath;
+            } else {
+              failedTracks++;
+              failedTrackNames.push(result.trackName);
+            }
+
+            updateProgress();
+            return result;
+          });
+
+          activePromises.set(index, { promise, title: track.title });
+        }
+
+        // Wait for at least one to complete before continuing
+        if (activePromises.size > 0) {
+          await Promise.race(
+            Array.from(activePromises.values()).map((p) => p.promise)
+          );
+        }
+      }
+    };
+
+    await processInBatches();
+
+    // Collect successfully downloaded files in order
+    for (const filePath of trackResults) {
+      if (filePath) {
+        downloadedFiles.push(filePath);
+      }
     }
 
     // Step 3: Create ZIP file
@@ -496,17 +546,11 @@ async function processPlaylistConversion(jobId, playlistId, spotifyUrl) {
       },
     });
 
-    // Auto-cleanup job after 30 minutes
-    setTimeout(() => {
-      conversionJobs.delete(jobId);
-      try {
-        fs.unlinkSync(zipPath);
-      } catch (e) {}
-    }, 30 * 60 * 1000);
-
+    // Job auto-cleanup handled by SQLite database
+    // ZIP file cleanup handled by fileManager
   } catch (error) {
     console.error("Playlist conversion error:", error);
-    
+
     // Clean up on error
     for (const filePath of downloadedFiles) {
       try {
@@ -521,7 +565,9 @@ async function processPlaylistConversion(jobId, playlistId, spotifyUrl) {
       status: "error",
       step: "Conversion failed",
       progress: 0,
-      error: error.message || "An unexpected error occurred during playlist conversion",
+      error:
+        error.message ||
+        "An unexpected error occurred during playlist conversion",
     });
   }
 }

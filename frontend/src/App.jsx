@@ -114,7 +114,11 @@ function App() {
       /^https?:\/\/(open\.)?spotify\.com\/playlist\/[a-zA-Z0-9]+/i;
     const youtubeRegex =
       /^https?:\/\/(www\.)?(youtube\.com\/(watch\?v=|shorts\/)|youtu\.be\/)[a-zA-Z0-9_-]+/i;
-    return spotifyTrackRegex.test(url) || spotifyPlaylistRegex.test(url) || youtubeRegex.test(url);
+    return (
+      spotifyTrackRegex.test(url) ||
+      spotifyPlaylistRegex.test(url) ||
+      youtubeRegex.test(url)
+    );
   };
 
   const isValidUrl = validateUrl(spotifyUrl);

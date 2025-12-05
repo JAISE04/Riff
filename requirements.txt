@@ -15,6 +15,7 @@ concurrently@^8.2.2          # Run multiple commands concurrently
 @distube/ytdl-core@^4.16.12  # YouTube video downloader (core library)
 archiver@^7.0.1              # ZIP file creation for playlist downloads
 axios@^1.6.2                 # HTTP client for API requests
+better-sqlite3@^11.10.0      # SQLite database for job persistence
 cors@^2.8.5                  # Cross-Origin Resource Sharing middleware
 dotenv@^16.3.1               # Environment variable loader
 express@^4.18.2              # Web server framework

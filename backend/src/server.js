@@ -6,6 +6,7 @@ import { fileURLToPath } from "url";
 import fs from "fs";
 import conversionRoutes from "./routes/conversion.js";
 import { cleanupExpiredFiles } from "./utils/fileManager.js";
+import { jobStore } from "./utils/database.js";
 
 dotenv.config();
 
@@ -73,7 +74,12 @@ cleanupExpiredFiles(
   parseInt(process.env.FILE_EXPIRATION_MINUTES) || 30
 );
 
+// Database cleanup on startup
+const dbStats = jobStore.getStats();
+console.log(`📊 Database initialized: ${dbStats.total} jobs in database`);
+
 app.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
   console.log(`📁 Temp files stored in: ${tempPath}`);
+  console.log(`💾 Jobs persisted in SQLite database`);
 });

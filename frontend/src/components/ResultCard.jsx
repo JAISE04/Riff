@@ -1,7 +1,8 @@
 import { formatFileSize } from "../services/api";
 
 export default function ResultCard({ data, onDownload, onReset }) {
-  const { metadata, downloadUrl, filename, fileSize, quality, playlistInfo } = data;
+  const { metadata, downloadUrl, filename, fileSize, quality, playlistInfo } =
+    data;
   const isPlaylist = metadata?.isPlaylist || playlistInfo;
 
   const handleDownloadClick = (e) => {

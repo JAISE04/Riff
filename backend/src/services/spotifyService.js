@@ -204,7 +204,9 @@ export async function getPlaylistMetadata(playlistId) {
   const token = await getSpotifyToken();
 
   if (!token) {
-    throw new Error("Spotify API credentials required for playlist downloads. Please configure SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET.");
+    throw new Error(
+      "Spotify API credentials required for playlist downloads. Please configure SPOTIFY_CLIENT_ID and SPOTIFY_CLIENT_SECRET."
+    );
   }
 
   try {
@@ -219,21 +221,21 @@ export async function getPlaylistMetadata(playlistId) {
     );
 
     const playlist = playlistResponse.data;
-    
+
     // Get all tracks (handle pagination)
     let tracks = [];
     let nextUrl = `https://api.spotify.com/v1/playlists/${playlistId}/tracks?limit=100`;
-    
+
     while (nextUrl) {
       const tracksResponse = await axios.get(nextUrl, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
       });
-      
+
       const validTracks = tracksResponse.data.items
-        .filter(item => item.track && item.track.id) // Filter out null/unavailable tracks
-        .map(item => ({
+        .filter((item) => item.track && item.track.id) // Filter out null/unavailable tracks
+        .map((item) => ({
           id: item.track.id,
           title: item.track.name,
           artist: item.track.artists.map((a) => a.name).join(", "),
@@ -242,7 +244,7 @@ export async function getPlaylistMetadata(playlistId) {
           duration: item.track.duration_ms,
           trackNumber: item.track.track_number,
         }));
-      
+
       tracks = [...tracks, ...validTracks];
       nextUrl = tracksResponse.data.next;
     }
@@ -258,7 +260,9 @@ export async function getPlaylistMetadata(playlistId) {
     };
   } catch (error) {
     console.error("Error fetching playlist metadata:", error.message);
-    throw new Error("Failed to fetch playlist. Make sure it's a public playlist.");
+    throw new Error(
+      "Failed to fetch playlist. Make sure it's a public playlist."
+    );
   }
 }
 

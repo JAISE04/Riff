@@ -91,7 +91,8 @@ export default function SpotifyInput({
   // Get icon color based on URL type and validity
   const getIconColor = () => {
     if (!value) return "text-spotify-gray";
-    if (urlType === "spotify" || urlType === "spotify-playlist") return "text-spotify-green";
+    if (urlType === "spotify" || urlType === "spotify-playlist")
+      return "text-spotify-green";
     if (urlType === "youtube") return "text-red-500";
     return "text-spotify-gray";
   };

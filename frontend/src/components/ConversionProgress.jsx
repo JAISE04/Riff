@@ -38,7 +38,8 @@ export default function ConversionProgress({ data }) {
             </p>
             {isPlaylist && playlistInfo && (
               <p className="text-xs text-spotify-gray mt-1">
-                {playlistInfo.completedTracks || 0} / {playlistInfo.totalTracks} tracks downloaded
+                {playlistInfo.completedTracks || 0} / {playlistInfo.totalTracks}{" "}
+                tracks downloaded
                 {playlistInfo.failedTracks > 0 && (
                   <span className="text-red-400 ml-2">
                     ({playlistInfo.failedTracks} failed)
@@ -50,13 +51,40 @@ export default function ConversionProgress({ data }) {
         </div>
       )}
 
-      {/* Playlist Current Track */}
-      {isPlaylist && playlistInfo?.currentTrack && (
+      {/* Playlist Current Tracks - Parallel Download Status */}
+      {isPlaylist && playlistInfo?.inProgress > 0 && (
         <div className="bg-spotify-lightGray/50 rounded-xl p-3 text-sm">
-          <p className="text-spotify-gray">Currently downloading:</p>
-          <p className="text-white truncate">{playlistInfo.currentTrack}</p>
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex gap-1">
+              {[...Array(Math.min(playlistInfo.inProgress, 4))].map((_, i) => (
+                <div
+                  key={i}
+                  className="w-2 h-2 bg-spotify-green rounded-full animate-pulse"
+                  style={{ animationDelay: `${i * 0.15}s` }}
+                />
+              ))}
+            </div>
+            <p className="text-spotify-gray">
+              Downloading {playlistInfo.inProgress} tracks in parallel
+            </p>
+          </div>
+          {playlistInfo.currentTracks && (
+            <p className="text-white truncate text-xs opacity-70">
+              {playlistInfo.currentTracks}
+            </p>
+          )}
         </div>
       )}
+
+      {/* Legacy single track display */}
+      {isPlaylist &&
+        playlistInfo?.currentTrack &&
+        !playlistInfo?.inProgress && (
+          <div className="bg-spotify-lightGray/50 rounded-xl p-3 text-sm">
+            <p className="text-spotify-gray">Currently downloading:</p>
+            <p className="text-white truncate">{playlistInfo.currentTrack}</p>
+          </div>
+        )}
 
       {/* Progress Section */}
       <div className="bg-spotify-lightGray rounded-2xl p-6 space-y-4">
@@ -97,10 +125,9 @@ export default function ConversionProgress({ data }) {
         <div className="text-center space-y-1">
           <p className="text-white font-medium">{step}</p>
           <p className="text-spotify-gray text-sm">
-            {isPlaylist 
+            {isPlaylist
               ? "This may take a few minutes depending on playlist size"
-              : "This usually takes 5-10 seconds"
-            }
+              : "This usually takes 5-10 seconds"}
           </p>
         </div>
 

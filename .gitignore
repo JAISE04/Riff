@@ -15,6 +15,11 @@ temp/
 *.tmp
 *.temp
 
+# SQLite database files
+*.db
+*.db-shm
+*.db-wal
+
 # Logs
 logs/
 *.log
