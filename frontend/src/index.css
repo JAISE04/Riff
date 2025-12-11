@@ -112,47 +112,47 @@ input:-webkit-autofill:focus {
     backdrop-filter: blur(5px);
     -webkit-backdrop-filter: blur(5px);
   }
-  
+
   .blob {
     animation: none !important;
     opacity: 0.3;
   }
-  
+
   .aurora {
     animation: none !important;
   }
-  
+
   .float {
     animation: none !important;
   }
-  
+
   .pulse-glow {
     animation: none !important;
   }
-  
+
   .logo-breathe {
     animation: none !important;
     filter: drop-shadow(0 0 20px rgba(29, 185, 84, 0.5));
   }
-  
+
   .text-glow-pulse {
     animation: none !important;
     text-shadow: 0 0 20px rgba(29, 185, 84, 0.4);
   }
-  
+
   .gradient-flow {
     animation: none !important;
   }
-  
+
   .orb-pulse {
     animation: none !important;
   }
-  
+
   .particle {
     animation: none !important;
     display: none;
   }
-  
+
   .noise-overlay {
     display: none;
   }

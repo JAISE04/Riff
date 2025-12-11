@@ -27,35 +27,39 @@ const YT_DLP_PATH = isWindows
   : "yt-dlp"; // Use system yt-dlp on Linux (installed via Dockerfile)
 
 // FFmpeg path - use environment variable, or system default on Linux
-const FFMPEG_PATH = process.env.FFMPEG_PATH || (isWindows
-  ? path.join(
-      os.homedir(),
-      "AppData",
-      "Local",
-      "Microsoft",
-      "WinGet",
-      "Packages",
-      "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
-      "ffmpeg-8.0.1-full_build",
-      "bin",
-      "ffmpeg.exe"
-    )
-  : "ffmpeg"); // Use system ffmpeg on Linux
+const FFMPEG_PATH =
+  process.env.FFMPEG_PATH ||
+  (isWindows
+    ? path.join(
+        os.homedir(),
+        "AppData",
+        "Local",
+        "Microsoft",
+        "WinGet",
+        "Packages",
+        "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
+        "ffmpeg-8.0.1-full_build",
+        "bin",
+        "ffmpeg.exe"
+      )
+    : "ffmpeg"); // Use system ffmpeg on Linux
 
-const FFPROBE_PATH = process.env.FFPROBE_PATH || (isWindows
-  ? path.join(
-      os.homedir(),
-      "AppData",
-      "Local",
-      "Microsoft",
-      "WinGet",
-      "Packages",
-      "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
-      "ffmpeg-8.0.1-full_build",
-      "bin",
-      "ffprobe.exe"
-    )
-  : "ffprobe"); // Use system ffprobe on Linux
+const FFPROBE_PATH =
+  process.env.FFPROBE_PATH ||
+  (isWindows
+    ? path.join(
+        os.homedir(),
+        "AppData",
+        "Local",
+        "Microsoft",
+        "WinGet",
+        "Packages",
+        "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
+        "ffmpeg-8.0.1-full_build",
+        "bin",
+        "ffprobe.exe"
+      )
+    : "ffprobe"); // Use system ffprobe on Linux
 
 // Set FFmpeg paths for fluent-ffmpeg
 ffmpegLib.setFfmpegPath(FFMPEG_PATH);

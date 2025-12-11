@@ -6,7 +6,7 @@ export function getDownloadUrl(filename) {
   // In production, use RAILWAY_PUBLIC_DOMAIN or BACKEND_URL
   // Railway automatically sets RAILWAY_PUBLIC_DOMAIN
   let baseUrl;
-  
+
   if (process.env.RAILWAY_PUBLIC_DOMAIN) {
     baseUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
   } else if (process.env.BACKEND_URL) {
@@ -14,7 +14,7 @@ export function getDownloadUrl(filename) {
   } else {
     baseUrl = `http://localhost:${process.env.PORT || 3001}`;
   }
-  
+
   return `${baseUrl}/downloads/${encodeURIComponent(filename)}`;
 }
 
