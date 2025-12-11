@@ -72,16 +72,31 @@ const allowedOrigins = process.env.FRONTEND_URL
   ? process.env.FRONTEND_URL.split(",").map((url) => url.trim())
   : ["http://localhost:5173", "http://localhost:3001"];
 
+// Vercel preview URL pattern (matches any Vercel preview deployment)
+const vercelPreviewPattern = /^https:\/\/.*\.vercel\.app$/;
+
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (mobile apps, curl, etc.)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.includes(origin) || !isProduction) {
-        callback(null, true);
-      } else {
-        callback(new Error("Not allowed by CORS"));
+      
+      // Allow if origin is in allowed list
+      if (allowedOrigins.includes(origin)) {
+        return callback(null, true);
       }
+      
+      // Allow any Vercel preview deployment
+      if (vercelPreviewPattern.test(origin)) {
+        return callback(null, true);
+      }
+      
+      // Allow all in development
+      if (!isProduction) {
+        return callback(null, true);
+      }
+      
+      callback(new Error("Not allowed by CORS"));
     },
     credentials: true,
   })
