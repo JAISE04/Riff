@@ -53,15 +53,16 @@ if (isProduction) {
 // Rate limiting
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per window
+  max: 500, // 500 requests per window (increased for status polling)
   message: { error: "Too many requests, please try again later." },
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => req.path.includes("/status/"), // Skip rate limit for status checks
 });
 
 const convertLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
-  max: 10, // 10 conversions per minute
+  max: 20, // 20 conversion starts per minute
   message: { error: "Too many conversion requests. Please wait a moment." },
   standardHeaders: true,
   legacyHeaders: false,
