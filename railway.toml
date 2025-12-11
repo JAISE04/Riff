@@ -1,23 +1,8 @@
 [build]
-builder = "NIXPACKS"
-
-[build.nixpacks]
-providers = ["node"]
-aptPkgs = ["ffmpeg", "python3", "python3-pip"]
-
-# Install yt-dlp after apt packages
-[build.nixpacks.phases.setup]
-cmds = ["pip3 install yt-dlp"]
+builder = "DOCKERFILE"
 
 [deploy]
 healthcheckPath = "/health"
 healthcheckTimeout = 30
 restartPolicyType = "ON_FAILURE"
 restartPolicyMaxRetries = 3
-startCommand = "cd backend && npm start"
-
-[build.nixpacks.phases.install]
-cmds = ["npm install", "cd frontend && npm install", "cd ../backend && npm install"]
-
-[build.nixpacks.phases.build]
-cmds = ["cd frontend && npm run build"]
