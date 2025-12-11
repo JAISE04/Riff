@@ -1,5 +1,5 @@
 # Build stage for frontend
-FROM node:20-alpine AS frontend-builder
+FROM node:20-slim AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
@@ -7,19 +7,21 @@ COPY frontend/ ./
 RUN npm run build
 
 # Production stage
-FROM node:20-alpine
+FROM node:20-slim
 WORKDIR /app
 
 # Install system dependencies (ffmpeg, yt-dlp, python for yt-dlp)
-RUN apk add --no-cache \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     python3 \
-    py3-pip \
-    && pip3 install --break-system-packages yt-dlp
+    python3-pip \
+    && pip3 install --break-system-packages yt-dlp \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
 # Install backend dependencies
 COPY backend/package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
 # Copy backend source
 COPY backend/src ./src

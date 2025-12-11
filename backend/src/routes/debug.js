@@ -31,12 +31,12 @@ router.get("/", async (req, res) => {
     nodeVersion: process.version,
     platform: process.platform,
     arch: process.arch,
-    checks: {}
+    checks: {},
   };
 
   // 1. Check FFmpeg
   checks.checks.ffmpeg = await checkCommand("ffmpeg", "-version");
-  
+
   // 2. Check yt-dlp (system-wide OR bundled with youtube-dl-exec)
   const systemYtdlp = await checkCommand("yt-dlp", "--version");
   if (systemYtdlp.installed) {
@@ -46,19 +46,24 @@ router.get("/", async (req, res) => {
     checks.checks.ytdlp = {
       installed: true,
       version: "bundled with youtube-dl-exec",
-      note: "yt-dlp is bundled and auto-downloaded by youtube-dl-exec package"
+      note: "yt-dlp is bundled and auto-downloaded by youtube-dl-exec package",
     };
   }
-  
+
   // 3. Check Spotify credentials
   checks.checks.spotify = {
     clientIdSet: !!process.env.SPOTIFY_CLIENT_ID,
     clientSecretSet: !!process.env.SPOTIFY_CLIENT_SECRET,
-    clientIdLength: process.env.SPOTIFY_CLIENT_ID?.length || 0
+    clientIdLength: process.env.SPOTIFY_CLIENT_ID?.length || 0,
   };
 
   // 4. Check temp directory
-  const tempPath = path.join(__dirname, "..", "..", process.env.TEMP_FILES_PATH || "./temp");
+  const tempPath = path.join(
+    __dirname,
+    "..",
+    "..",
+    process.env.TEMP_FILES_PATH || "./temp"
+  );
   try {
     if (!fs.existsSync(tempPath)) {
       fs.mkdirSync(tempPath, { recursive: true });
@@ -67,20 +72,20 @@ router.get("/", async (req, res) => {
     const testFile = path.join(tempPath, ".write-test");
     fs.writeFileSync(testFile, "test");
     fs.unlinkSync(testFile);
-    
+
     const files = fs.readdirSync(tempPath);
     checks.checks.tempDirectory = {
       exists: true,
       writable: true,
       path: tempPath,
       fileCount: files.length,
-      files: files.slice(0, 10) // Show first 10 files
+      files: files.slice(0, 10), // Show first 10 files
     };
   } catch (error) {
     checks.checks.tempDirectory = {
       exists: fs.existsSync(tempPath),
       writable: false,
-      error: error.message
+      error: error.message,
     };
   }
 
@@ -89,12 +94,12 @@ router.get("/", async (req, res) => {
     const stats = jobStore.getStats();
     checks.checks.database = {
       connected: true,
-      ...stats
+      ...stats,
     };
   } catch (error) {
     checks.checks.database = {
       connected: false,
-      error: error.message
+      error: error.message,
     };
   }
 
@@ -103,17 +108,17 @@ router.get("/", async (req, res) => {
   checks.checks.memory = {
     heapUsed: `${Math.round(memUsage.heapUsed / 1024 / 1024)} MB`,
     heapTotal: `${Math.round(memUsage.heapTotal / 1024 / 1024)} MB`,
-    rss: `${Math.round(memUsage.rss / 1024 / 1024)} MB`
+    rss: `${Math.round(memUsage.rss / 1024 / 1024)} MB`,
   };
 
   // 7. Uptime
   checks.checks.uptime = {
     seconds: Math.floor(process.uptime()),
-    formatted: formatUptime(process.uptime())
+    formatted: formatUptime(process.uptime()),
   };
 
   // Overall status
-  const allPassed = 
+  const allPassed =
     checks.checks.ffmpeg.installed &&
     checks.checks.ytdlp.installed &&
     checks.checks.spotify.clientIdSet &&
@@ -135,13 +140,13 @@ router.get("/spotify", async (req, res) => {
     res.json({
       status: "ok",
       message: "Spotify API connection successful",
-      tokenLength: token?.length || 0
+      tokenLength: token?.length || 0,
     });
   } catch (error) {
     res.status(500).json({
       status: "error",
       message: "Spotify API connection failed",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -154,13 +159,13 @@ router.get("/youtube", async (req, res) => {
     res.json({
       status: "ok",
       message: "YouTube search working",
-      resultCount: result.videos?.length || 0
+      resultCount: result.videos?.length || 0,
     });
   } catch (error) {
     res.status(500).json({
       status: "error",
       message: "YouTube search failed",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -171,19 +176,24 @@ router.get("/jobs", (req, res) => {
     const stats = jobStore.getStats();
     res.json({
       status: "ok",
-      ...stats
+      ...stats,
     });
   } catch (error) {
     res.status(500).json({
       status: "error",
-      error: error.message
+      error: error.message,
     });
   }
 });
 
 // Clear all temp files (use with caution)
 router.post("/clear-temp", (req, res) => {
-  const tempPath = path.join(__dirname, "..", "..", process.env.TEMP_FILES_PATH || "./temp");
+  const tempPath = path.join(
+    __dirname,
+    "..",
+    "..",
+    process.env.TEMP_FILES_PATH || "./temp"
+  );
   try {
     const files = fs.readdirSync(tempPath);
     let deleted = 0;
@@ -204,12 +214,12 @@ router.post("/clear-temp", (req, res) => {
     }
     res.json({
       status: "ok",
-      message: `Cleared ${deleted} files/folders from temp directory`
+      message: `Cleared ${deleted} files/folders from temp directory`,
     });
   } catch (error) {
     res.status(500).json({
       status: "error",
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -219,13 +229,13 @@ function formatUptime(seconds) {
   const hours = Math.floor((seconds % 86400) / 3600);
   const minutes = Math.floor((seconds % 3600) / 60);
   const secs = Math.floor(seconds % 60);
-  
+
   const parts = [];
   if (days > 0) parts.push(`${days}d`);
   if (hours > 0) parts.push(`${hours}h`);
   if (minutes > 0) parts.push(`${minutes}m`);
   parts.push(`${secs}s`);
-  
+
   return parts.join(" ");
 }
 
