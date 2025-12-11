@@ -113,11 +113,18 @@ app.use(
   "/downloads",
   express.static(tempPath, {
     setHeaders: (res, filePath) => {
+      const filename = path.basename(filePath);
       if (filePath.endsWith(".mp3")) {
         res.setHeader("Content-Type", "audio/mpeg");
         res.setHeader(
           "Content-Disposition",
-          `attachment; filename="${path.basename(filePath)}"`
+          `attachment; filename="${filename}"`
+        );
+      } else if (filePath.endsWith(".zip")) {
+        res.setHeader("Content-Type", "application/zip");
+        res.setHeader(
+          "Content-Disposition",
+          `attachment; filename="${filename}"`
         );
       }
     },
