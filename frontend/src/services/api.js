@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.PROD ? "" : "";
+const API_BASE = import.meta.env.VITE_API_URL || "";
 
 export async function convertSpotifyUrl(spotifyUrl) {
   const response = await fetch(`${API_BASE}/api/convert`, {

@@ -120,8 +120,22 @@ if (!isProduction || process.env.ENABLE_DEBUG === "true") {
 
 // Serve frontend in production
 if (isProduction) {
-  const frontendPath = path.join(__dirname, "..", "..", "frontend", "dist");
-  if (fs.existsSync(frontendPath)) {
+  // Check multiple possible frontend paths (Docker vs local)
+  const possiblePaths = [
+    path.join(__dirname, "..", "..", "frontend", "dist"), // Local dev
+    path.join(__dirname, "..", "frontend", "dist"), // Docker /app structure
+    "/app/frontend/dist", // Docker absolute
+  ];
+
+  let frontendPath = null;
+  for (const p of possiblePaths) {
+    if (fs.existsSync(p)) {
+      frontendPath = p;
+      break;
+    }
+  }
+
+  if (frontendPath) {
     app.use(express.static(frontendPath));
     app.get("*", (req, res, next) => {
       // Skip API routes and downloads
@@ -135,6 +149,8 @@ if (isProduction) {
       res.sendFile(path.join(frontendPath, "index.html"));
     });
     console.log(`📦 Serving frontend from: ${frontendPath}`);
+  } else {
+    console.log("⚠️ Frontend dist not found, API-only mode");
   }
 }
 
