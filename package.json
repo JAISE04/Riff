@@ -1,7 +1,7 @@
 {
-  "name": "spotify-mp3-converter",
+  "name": "riff",
   "version": "1.0.0",
-  "description": "Spotify Link to MP3 Web Converter with Mobile-First UI",
+  "description": "Spotify & YouTube to MP3 Converter - Fast, Beautiful, Production-Ready",
   "private": true,
   "workspaces": [
     "frontend",
@@ -11,9 +11,17 @@
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "cd frontend && npm run dev",
     "dev:backend": "cd backend && npm run dev",
-    "build": "cd frontend && npm run build",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd frontend && npm run build",
     "start": "cd backend && npm start",
-    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install"
+    "start:prod": "NODE_ENV=production npm start",
+    "install:all": "npm install && cd frontend && npm install && cd ../backend && npm install",
+    "clean": "rm -rf node_modules frontend/node_modules backend/node_modules frontend/dist backend/temp",
+    "docker:build": "docker build -t riff .",
+    "docker:run": "docker run -p 3001:3001 --env-file backend/.env riff"
+  },
+  "engines": {
+    "node": ">=18.0.0"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

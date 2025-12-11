@@ -1,21 +1,23 @@
-# 🎵 Spotify to MP3 Converter
+# 🎵 Riff - Spotify & YouTube to MP3 Converter
 
-A fast, responsive, and aesthetically pleasing web application that converts Spotify tracks to downloadable MP3 files. Built with a mobile-first approach for an outstanding iOS/Android experience.
+A fast, responsive, and production-ready web application that converts Spotify tracks/playlists and YouTube videos to downloadable MP3 files. Built with a mobile-first approach for an outstanding iOS/Android experience.
 
-![Mobile-First Design](https://img.shields.io/badge/Design-Mobile--First-1DB954)
+![Production Ready](https://img.shields.io/badge/Status-Production%20Ready-success)
 ![React](https://img.shields.io/badge/Frontend-React%20%2B%20Vite-61DAFB)
 ![Node.js](https://img.shields.io/badge/Backend-Node.js%20%2B%20Express-339933)
 ![Tailwind CSS](https://img.shields.io/badge/Styling-Tailwind%20CSS-38B2AC)
 
 ## ✨ Features
 
+- **Spotify & YouTube Support**: Convert tracks from both platforms
+- **Playlist Downloads**: Download entire Spotify playlists as ZIP files
+- **Parallel Processing**: 4 concurrent downloads for faster playlist conversion
 - **Mobile-First UI**: Sleek, dark-themed design optimized for touch devices
-- **One-Tap Paste**: Quick paste button for easy URL input
-- **Real-Time Progress**: Animated progress indicator with status updates
 - **High-Quality Audio**: Converts to 320kbps MP3 with full ID3 tags
 - **Album Artwork**: Embeds cover art directly into MP3 files
-- **iOS Support**: Special instructions modal for iPhone users
-- **Auto-Cleanup**: Temporary files are automatically purged
+- **Job Persistence**: SQLite database stores conversion jobs across restarts
+- **Production Security**: Rate limiting, helmet, CORS protection
+- **Auto-Cleanup**: Temporary files and expired jobs are automatically purged
 
 ## 🛠️ Tech Stack
 
@@ -28,39 +30,42 @@ A fast, responsive, and aesthetically pleasing web application that converts Spo
 ### Backend
 
 - Node.js + Express
+- SQLite for job persistence
 - Spotify Web API for metadata
-- yt-search for audio matching
-- ytdl-core for audio download
+- yt-dlp for audio download
 - fluent-ffmpeg for MP3 conversion
-- node-id3 for metadata tagging
+- Rate limiting & security headers
 
 ## 📋 Prerequisites
 
 - **Node.js** 18+
 - **FFmpeg** installed and available in PATH
+- **yt-dlp** installed (or youtube-dl-exec will handle it)
 - **Spotify Developer Account** (for API credentials)
 
-### Installing FFmpeg
+### Installing Dependencies
 
 **Windows:**
 
 ```bash
-# Using Chocolatey
+# FFmpeg - using Chocolatey
 choco install ffmpeg
 
-# Or download from https://ffmpeg.org/download.html
+# yt-dlp
+pip install yt-dlp
 ```
 
 **macOS:**
 
 ```bash
-brew install ffmpeg
+brew install ffmpeg yt-dlp
 ```
 
 **Linux:**
 
 ```bash
 sudo apt update && sudo apt install ffmpeg
+pip install yt-dlp
 ```
 
 ## 🚀 Quick Start
@@ -68,134 +73,165 @@ sudo apt update && sudo apt install ffmpeg
 ### 1. Clone and Install
 
 ```bash
-# Clone the repository
-cd "Spotify alt"
-
-# Install all dependencies
+git clone https://github.com/JAISE04/Riff.git
+cd Riff
 npm run install:all
 ```
 
 ### 2. Configure Environment
 
 1. Go to [Spotify Developer Dashboard](https://developer.spotify.com/dashboard)
-2. Create a new application
-3. Copy your Client ID and Client Secret
-4. Edit `backend/.env`:
+2. Create a new app and get your credentials
+3. Create `backend/.env`:
 
 ```env
-SPOTIFY_CLIENT_ID=your_actual_client_id
-SPOTIFY_CLIENT_SECRET=your_actual_client_secret
+NODE_ENV=development
+PORT=3001
+SPOTIFY_CLIENT_ID=your_client_id
+SPOTIFY_CLIENT_SECRET=your_client_secret
+FRONTEND_URL=http://localhost:5173
 ```
 
-> **Note:** The app works without Spotify credentials using the oEmbed API fallback, but metadata will be limited.
-
-### 3. Run Development Servers
+### 3. Run Development Server
 
 ```bash
-# Start both frontend and backend
 npm run dev
 ```
 
-- Frontend: http://localhost:5173
-- Backend: http://localhost:3001
+Open http://localhost:5173 in your browser.
 
-## 📱 Usage
+## 🚢 Production Deployment
 
-1. **Copy** a Spotify track URL (e.g., `https://open.spotify.com/track/...`)
-2. **Paste** into the input field (use the Paste button on mobile)
-3. **Click** "Convert & Download"
-4. **Wait** for the conversion (usually 5-10 seconds)
-5. **Download** your MP3 file
+### Option 1: Railway (Recommended)
 
-### iOS Users
+[![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template)
 
-After downloading, look for the blue download arrow in Safari's address bar. Files are saved to the Downloads folder in the Files app.
+1. Connect your GitHub repo to Railway
+2. Set environment variables:
+   - `NODE_ENV=production`
+   - `SPOTIFY_CLIENT_ID`
+   - `SPOTIFY_CLIENT_SECRET`
+   - `FRONTEND_URL` (your Railway app URL)
+3. Railway will auto-deploy using `railway.toml`
 
-## 🏗️ Project Structure
+### Option 2: Render
 
-```
-spotify-mp3-converter/
-├── frontend/                # React frontend
-│   ├── src/
-│   │   ├── components/      # React components
-│   │   ├── services/        # API services
-│   │   ├── App.jsx          # Main app component
-│   │   └── index.css        # Tailwind styles
-│   ├── public/              # Static assets
-│   └── vite.config.js       # Vite configuration
-│
-├── backend/                 # Express backend
-│   ├── src/
-│   │   ├── routes/          # API routes
-│   │   ├── services/        # Business logic
-│   │   └── utils/           # Utility functions
-│   └── .env                 # Environment variables
-│
-└── package.json             # Root package.json
-```
+1. Create a new Web Service on Render
+2. Connect your GitHub repo
+3. Set build command: `chmod +x build.sh && ./build.sh`
+4. Set start command: `cd backend && npm start`
+5. Add environment variables
 
-## 🔧 API Endpoints
-
-| Method | Endpoint               | Description                               |
-| ------ | ---------------------- | ----------------------------------------- |
-| POST   | `/api/convert`         | Start conversion (body: `{ spotifyUrl }`) |
-| GET    | `/api/status/:jobId`   | Check conversion status                   |
-| GET    | `/downloads/:filename` | Download converted MP3                    |
-| GET    | `/health`              | Health check                              |
-
-## 🚢 Deployment
-
-### Build for Production
+### Option 3: Docker
 
 ```bash
-# Build frontend
-cd frontend && npm run build
+# Build the image
+npm run docker:build
 
-# The dist folder can be served by the backend
+# Run with your .env file
+npm run docker:run
+
+# Or manually
+docker run -p 3001:3001 \
+  -e SPOTIFY_CLIENT_ID=xxx \
+  -e SPOTIFY_CLIENT_SECRET=xxx \
+  -e NODE_ENV=production \
+  riff
 ```
 
-### Environment Variables for Production
+### Option 4: VPS (DigitalOcean, AWS, etc.)
 
-```env
-NODE_ENV=production
-PORT=3001
-FRONTEND_URL=https://your-domain.com
-BACKEND_URL=https://your-domain.com
-SPOTIFY_CLIENT_ID=your_client_id
-SPOTIFY_CLIENT_SECRET=your_client_secret
+```bash
+# Install dependencies
+sudo apt update
+sudo apt install nodejs npm ffmpeg python3-pip
+pip install yt-dlp
+
+# Clone and setup
+git clone https://github.com/JAISE04/Riff.git
+cd Riff
+npm run install:all
+npm run build
+
+# Start with PM2 (recommended)
+npm install -g pm2
+cd backend
+NODE_ENV=production pm2 start src/server.js --name riff
+pm2 save
+pm2 startup
 ```
 
-### Deploy to Cloud
+## 🔧 Environment Variables
 
-The app is ready for deployment to:
+| Variable                  | Description                            | Required | Default                 |
+| ------------------------- | -------------------------------------- | -------- | ----------------------- |
+| `NODE_ENV`                | Environment mode                       | No       | `development`           |
+| `PORT`                    | Server port                            | No       | `3001`                  |
+| `SPOTIFY_CLIENT_ID`       | Spotify API client ID                  | Yes      | -                       |
+| `SPOTIFY_CLIENT_SECRET`   | Spotify API secret                     | Yes      | -                       |
+| `FRONTEND_URL`            | Allowed CORS origins (comma-separated) | No       | `http://localhost:5173` |
+| `TEMP_FILES_PATH`         | Temp files directory                   | No       | `./temp`                |
+| `FILE_EXPIRATION_MINUTES` | Auto-cleanup after minutes             | No       | `30`                    |
 
-- **Heroku**: Add `Procfile` with `web: npm start`
-- **Railway**: Connect GitHub repo
-- **Render**: Configure as Web Service
-- **DigitalOcean App Platform**: Use Dockerfile or buildpack
+## 📊 API Endpoints
 
-## ⚠️ Legal Notice
+| Endpoint             | Method | Description                        |
+| -------------------- | ------ | ---------------------------------- |
+| `/api/convert`       | POST   | Start a conversion job             |
+| `/api/status/:jobId` | GET    | Check conversion status            |
+| `/api/stats`         | GET    | Get server statistics              |
+| `/health`            | GET    | Health check with memory/job stats |
+| `/downloads/:file`   | GET    | Download converted file            |
 
-This tool is for **personal use only**. Users are responsible for ensuring they have the right to download and convert content. This project is not affiliated with Spotify.
+## 🔒 Security Features
 
-## 🐛 Troubleshooting
+- **Helmet.js**: Security headers
+- **Rate Limiting**: 100 req/15min general, 10 conversions/min
+- **CORS**: Configurable allowed origins
+- **Input Validation**: URL pattern validation
+- **Error Sanitization**: No stack traces in production
 
-### "FFmpeg not found"
+## 📁 Project Structure
 
-Ensure FFmpeg is installed and in your system PATH. Run `ffmpeg -version` to verify.
+```
+Riff/
+├── backend/
+│   ├── src/
+│   │   ├── server.js          # Express app entry
+│   │   ├── routes/
+│   │   │   └── conversion.js  # API routes
+│   │   ├── services/
+│   │   │   ├── spotifyService.js
+│   │   │   ├── youtubeService.js
+│   │   │   └── conversionService.js
+│   │   └── utils/
+│   │       ├── database.js    # SQLite job store
+│   │       └── fileManager.js # Temp file cleanup
+│   ├── temp/                  # Converted files
+│   └── riff.db               # SQLite database
+├── frontend/
+│   ├── src/
+│   │   ├── App.jsx
+│   │   └── components/
+│   └── dist/                 # Production build
+├── Dockerfile
+├── railway.toml
+├── render.yaml
+└── package.json
+```
 
-### "Could not find audio source"
+## 🤝 Contributing
 
-Some tracks may not have matching audio available. Try popular/mainstream tracks.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing`)
+5. Open a Pull Request
 
-### CORS Errors
+## 📄 License
 
-Make sure `FRONTEND_URL` in `.env` matches your frontend's URL.
-
-## 📝 License
-
-MIT License - See LICENSE file for details.
+MIT License - feel free to use this project for personal or commercial purposes.
 
 ---
 
-Built with ❤️ for music lovers
+**Note**: This application is for personal use only. Please respect copyright laws and only download content you have the right to access.

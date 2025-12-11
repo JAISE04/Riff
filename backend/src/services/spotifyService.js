@@ -280,4 +280,4 @@ function extractPlaylistId(url) {
   return null;
 }
 
-export { extractTrackId, extractPlaylistId };
+export { extractTrackId, extractPlaylistId, getSpotifyToken };

@@ -16,10 +16,14 @@ concurrently@^8.2.2          # Run multiple commands concurrently
 archiver@^7.0.1              # ZIP file creation for playlist downloads
 axios@^1.6.2                 # HTTP client for API requests
 better-sqlite3@^11.10.0      # SQLite database for job persistence
+compression@^1.7.4           # Gzip compression middleware
 cors@^2.8.5                  # Cross-Origin Resource Sharing middleware
 dotenv@^16.3.1               # Environment variable loader
 express@^4.18.2              # Web server framework
+express-rate-limit@^7.1.5    # Rate limiting middleware
 fluent-ffmpeg@^2.1.2         # FFmpeg wrapper for audio processing
+helmet@^7.1.0                # Security headers middleware
+morgan@^1.10.0               # HTTP request logger
 node-id3@^0.2.6              # MP3 ID3 tag writer (metadata)
 play-dl@^1.9.7               # YouTube/Spotify streaming library
 uuid@^9.0.1                  # Unique ID generator

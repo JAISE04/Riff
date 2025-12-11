@@ -1,0 +1,15 @@
+[build]
+builder = "NIXPACKS"
+
+[build.nixpacks]
+aptPkgs = ["ffmpeg", "python3", "python3-pip"]
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 30
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
+
+[[services]]
+protocol = "https"
+port = 3001
