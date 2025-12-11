@@ -1,0 +1,10 @@
+# Nixpacks configuration for Railway deployment
+
+[phases.setup]
+nixPkgs = ["nodejs_20", "ffmpeg", "yt-dlp", "python311"]
+
+[phases.install]
+cmds = ["npm install"]
+
+[start]
+cmd = "node src/server.js"

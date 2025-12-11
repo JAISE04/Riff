@@ -8,7 +8,6 @@ import path from "path";
 import { fileURLToPath } from "url";
 import os from "os";
 
-
 const execAsync = promisify(exec);
 
 const __filename = fileURLToPath(import.meta.url);
@@ -20,42 +19,43 @@ const TEMP_PATH = path.join(
   process.env.TEMP_FILES_PATH || "./temp"
 );
 
-// Get the yt-dlp binary path
-const YT_DLP_PATH = path.join(
-  __dirname,
-  "../../../node_modules/youtube-dl-exec/bin/yt-dlp.exe"
-);
+const isWindows = process.platform === "win32";
 
-// FFmpeg path - try environment variable first, then common locations
-const FFMPEG_PATH =
-  process.env.FFMPEG_PATH ||
-  path.join(
-    os.homedir(),
-    "AppData",
-    "Local",
-    "Microsoft",
-    "WinGet",
-    "Packages",
-    "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
-    "ffmpeg-8.0.1-full_build",
-    "bin",
-    "ffmpeg.exe"
-  );
+// Get the yt-dlp binary path - use system yt-dlp on Linux, bundled on Windows
+const YT_DLP_PATH = isWindows
+  ? path.join(__dirname, "../../../node_modules/youtube-dl-exec/bin/yt-dlp.exe")
+  : "yt-dlp"; // Use system yt-dlp on Linux (installed via Dockerfile)
 
-const FFPROBE_PATH =
-  process.env.FFPROBE_PATH ||
-  path.join(
-    os.homedir(),
-    "AppData",
-    "Local",
-    "Microsoft",
-    "WinGet",
-    "Packages",
-    "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
-    "ffmpeg-8.0.1-full_build",
-    "bin",
-    "ffprobe.exe"
-  );
+// FFmpeg path - use environment variable, or system default on Linux
+const FFMPEG_PATH = process.env.FFMPEG_PATH || (isWindows
+  ? path.join(
+      os.homedir(),
+      "AppData",
+      "Local",
+      "Microsoft",
+      "WinGet",
+      "Packages",
+      "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
+      "ffmpeg-8.0.1-full_build",
+      "bin",
+      "ffmpeg.exe"
+    )
+  : "ffmpeg"); // Use system ffmpeg on Linux
+
+const FFPROBE_PATH = process.env.FFPROBE_PATH || (isWindows
+  ? path.join(
+      os.homedir(),
+      "AppData",
+      "Local",
+      "Microsoft",
+      "WinGet",
+      "Packages",
+      "Gyan.FFmpeg_Microsoft.Winget.Source_8wekyb3d8bbwe",
+      "ffmpeg-8.0.1-full_build",
+      "bin",
+      "ffprobe.exe"
+    )
+  : "ffprobe"); // Use system ffprobe on Linux
 
 // Set FFmpeg paths for fluent-ffmpeg
 ffmpegLib.setFfmpegPath(FFMPEG_PATH);
@@ -96,10 +96,16 @@ export async function downloadAndConvert(
     console.log("Starting yt-dlp download...");
 
     // Get FFmpeg bin directory for yt-dlp
-    const ffmpegDir = path.dirname(FFMPEG_PATH);
+    const ffmpegDir = isWindows ? path.dirname(FFMPEG_PATH) : "/usr/bin";
 
-    // Build command with properly quoted paths and ffmpeg location
-    const ytDlpCmd = `"${YT_DLP_PATH}" "${videoUrl}" -x --audio-format mp3 --audio-quality 0 -o "${outputPath}" --no-check-certificates --no-warnings --ffmpeg-location "${ffmpegDir}"`;
+    // Build command - handle Windows vs Linux path quoting
+    let ytDlpCmd;
+    if (isWindows) {
+      ytDlpCmd = `"${YT_DLP_PATH}" "${videoUrl}" -x --audio-format mp3 --audio-quality 0 -o "${outputPath}" --no-check-certificates --no-warnings --ffmpeg-location "${ffmpegDir}"`;
+    } else {
+      // On Linux, use system yt-dlp without quotes around the command
+      ytDlpCmd = `${YT_DLP_PATH} "${videoUrl}" -x --audio-format mp3 --audio-quality 0 -o "${outputPath}" --no-check-certificates --no-warnings`;
+    }
 
     console.log(`Executing: ${ytDlpCmd}`);
     await execAsync(ytDlpCmd, { shell: true, maxBuffer: 10 * 1024 * 1024 });
