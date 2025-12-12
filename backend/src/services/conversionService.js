@@ -70,10 +70,16 @@ if (!fs.existsSync(TEMP_PATH)) {
   fs.mkdirSync(TEMP_PATH, { recursive: true });
 }
 
-// Helper to sanitize filenames
-// function sanitizeFilename(name) {
-//   return name.replace(/[^a-z0-9]/gi, "_").toLowerCase();
-// }
+// Helper to sanitize filenames - remove problematic characters
+function sanitizeFilename(name) {
+  return name
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "") // Remove illegal chars
+    .replace(/[\u200B-\u200D\uFEFF\u202A-\u202E]/g, "") // Remove zero-width and directional chars
+    .replace(/[^\x20-\x7E\u00A0-\uFFFF]/g, "") // Keep only printable chars
+    .replace(/\s+/g, " ") // Normalize whitespace
+    .trim()
+    .substring(0, 100); // Limit length
+}
 
 // Download audio from YouTube and convert to MP3
 export async function downloadAndConvert(
@@ -89,9 +95,9 @@ export async function downloadAndConvert(
   console.log(`Video URL: ${videoUrl}`);
 
   // Use sanitized title for filename, fallback to jobId if title is missing
-  const safeTitle = metadata.title ? metadata.title : jobId;
-  const tempAudioPath = path.join(TEMP_PATH, `${safeTitle}_temp.webm`);
-  const outputPath = path.join(TEMP_PATH, `${safeTitle}.mp3`);
+  const safeTitle = metadata.title ? sanitizeFilename(metadata.title) : jobId;
+  // Use jobId for the actual file to avoid path issues, rename later
+  const outputPath = path.join(TEMP_PATH, `${jobId}.mp3`);
 
   try {
     onProgress(10);
@@ -117,11 +123,6 @@ export async function downloadAndConvert(
     console.log("Download and conversion complete!");
     onProgress(90);
 
-    // Clean up temp file if exists
-    if (fs.existsSync(tempAudioPath)) {
-      fs.unlinkSync(tempAudioPath);
-    }
-
     // Add ID3 tags
     await tagMP3File(outputPath, metadata);
     onProgress(100);
@@ -130,21 +131,19 @@ export async function downloadAndConvert(
     const stats = fs.statSync(outputPath);
 
     return {
-      filename: `${safeTitle}.mp3`,
+      filename: `${jobId}.mp3`,
       path: outputPath,
       fileSize: stats.size,
     };
   } catch (error) {
     // Cleanup on error
-    [tempAudioPath, outputPath].forEach((file) => {
-      if (fs.existsSync(file)) {
-        try {
-          fs.unlinkSync(file);
-        } catch (e) {
-          // Ignore cleanup errors
-        }
+    if (fs.existsSync(outputPath)) {
+      try {
+        fs.unlinkSync(outputPath);
+      } catch (e) {
+        // Ignore cleanup errors
       }
-    });
+    }
     throw error;
   }
 }
