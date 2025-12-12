@@ -322,8 +322,8 @@ async function processPlaylistConversion(jobId, playlistId, spotifyUrl) {
   const playlistDir = path.join(tempDir, `playlist-${jobId}`);
   const downloadedFiles = [];
 
-  // Concurrency settings
-  const CONCURRENT_DOWNLOADS = 4; // Number of parallel downloads
+  // Concurrency settings - reduced for Railway memory limits
+  const CONCURRENT_DOWNLOADS = 2; // Number of parallel downloads (reduced from 4)
 
   try {
     // Create playlist directory

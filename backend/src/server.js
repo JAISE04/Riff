@@ -232,6 +232,17 @@ const gracefulShutdown = (signal) => {
   }, 10000);
 };
 
+// Global error handlers to prevent crashes
+process.on("uncaughtException", (error) => {
+  console.error("❌ Uncaught Exception:", error.message);
+  console.error(error.stack);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("❌ Unhandled Rejection at:", promise);
+  console.error("Reason:", reason);
+});
+
 // Database stats on startup
 const startupStats = jobStore.getStats();
 console.log(`📊 Database initialized: ${startupStats.total} jobs in database`);

@@ -151,9 +151,7 @@ export default function SpotifyInput({
       >
         <div className="flex items-center bg-spotify-lightGray rounded-2xl overflow-hidden">
           {/* Dynamic Icon based on URL type */}
-          <div className="pl-4 pr-2">
-            {renderIcon()}
-          </div>
+          <div className="pl-4 pr-2">{renderIcon()}</div>
 
           {/* Input Field */}
           <input
