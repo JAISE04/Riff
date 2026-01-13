@@ -7,7 +7,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import os from "os";
-import ytdl from "@distube/ytdl-core";
+import play from "play-dl";
 
 const execAsync = promisify(exec);
 
@@ -99,43 +99,30 @@ export async function downloadAndConvert(
   try {
     onProgress(10);
 
-    console.log("Starting download with @distube/ytdl-core...");
+    console.log("Starting download with play-dl...");
 
-    // Download audio using ytdl-core (more reliable than yt-dlp for YouTube)
+    // Get stream using play-dl (handles YouTube bot detection better)
+    const stream = await play.stream(videoUrl, { quality: 2 }); // quality 2 = highest audio
+    
+    onProgress(20);
+
+    // Write stream to temp file
     await new Promise((resolve, reject) => {
-      const audioStream = ytdl(videoUrl, {
-        filter: "audioonly",
-        quality: "highestaudio",
-        requestOptions: {
-          headers: {
-            // Use a realistic user agent
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          },
-        },
-      });
-
       const writeStream = fs.createWriteStream(tempAudioPath);
       
-      let downloadedBytes = 0;
-      audioStream.on("progress", (chunkLength, downloaded, total) => {
-        downloadedBytes = downloaded;
-        const percent = Math.floor((downloaded / total) * 60) + 10; // 10-70%
-        onProgress(Math.min(percent, 70));
-      });
-
-      audioStream.on("error", (err) => {
-        console.error("ytdl-core download error:", err.message);
+      stream.stream.on("error", (err) => {
+        console.error("play-dl stream error:", err.message);
         reject(err);
       });
 
       writeStream.on("error", reject);
       writeStream.on("finish", resolve);
 
-      audioStream.pipe(writeStream);
+      stream.stream.pipe(writeStream);
     });
 
     console.log("Download complete, converting to MP3...");
-    onProgress(75);
+    onProgress(60);
 
     // Convert to MP3 using ffmpeg
     await new Promise((resolve, reject) => {
@@ -144,7 +131,7 @@ export async function downloadAndConvert(
         .audioCodec("libmp3lame")
         .toFormat("mp3")
         .on("progress", (progress) => {
-          const percent = Math.floor(75 + (progress.percent || 0) * 0.15); // 75-90%
+          const percent = Math.floor(60 + (progress.percent || 0) * 0.3); // 60-90%
           onProgress(Math.min(percent, 90));
         })
         .on("error", (err) => {
