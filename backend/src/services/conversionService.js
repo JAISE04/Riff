@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import os from "os";
+import ytdl from "@distube/ytdl-core";
 
 const execAsync = promisify(exec);
 
@@ -20,11 +21,6 @@ const TEMP_PATH = path.join(
 );
 
 const isWindows = process.platform === "win32";
-
-// Get the yt-dlp binary path - use system yt-dlp on Linux, bundled on Windows
-const YT_DLP_PATH = isWindows
-  ? path.join(__dirname, "../../../node_modules/youtube-dl-exec/bin/yt-dlp.exe")
-  : "yt-dlp"; // Use system yt-dlp on Linux (installed via Dockerfile)
 
 // FFmpeg path - use environment variable, or system default on Linux
 const FFMPEG_PATH =
@@ -98,29 +94,75 @@ export async function downloadAndConvert(
   const safeTitle = metadata.title ? sanitizeFilename(metadata.title) : jobId;
   // Use jobId for the actual file to avoid path issues, rename later
   const outputPath = path.join(TEMP_PATH, `${jobId}.mp3`);
+  const tempAudioPath = path.join(TEMP_PATH, `${jobId}_temp.webm`);
 
   try {
     onProgress(10);
 
-    // Download audio using yt-dlp with proper path quoting for Windows
-    console.log("Starting yt-dlp download...");
+    console.log("Starting download with @distube/ytdl-core...");
 
-    // Get FFmpeg bin directory for yt-dlp
-    const ffmpegDir = isWindows ? path.dirname(FFMPEG_PATH) : "/usr/bin";
+    // Download audio using ytdl-core (more reliable than yt-dlp for YouTube)
+    await new Promise((resolve, reject) => {
+      const audioStream = ytdl(videoUrl, {
+        filter: "audioonly",
+        quality: "highestaudio",
+        requestOptions: {
+          headers: {
+            // Use a realistic user agent
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          },
+        },
+      });
 
-    // Build command - handle Windows vs Linux path quoting
-    let ytDlpCmd;
-    if (isWindows) {
-      ytDlpCmd = `"${YT_DLP_PATH}" "${videoUrl}" -x --audio-format mp3 --audio-quality 0 -o "${outputPath}" --no-check-certificates --no-warnings --ffmpeg-location "${ffmpegDir}"`;
-    } else {
-      // On Linux, use system yt-dlp without quotes around the command
-      ytDlpCmd = `${YT_DLP_PATH} "${videoUrl}" -x --audio-format mp3 --audio-quality 0 -o "${outputPath}" --no-check-certificates --no-warnings`;
+      const writeStream = fs.createWriteStream(tempAudioPath);
+      
+      let downloadedBytes = 0;
+      audioStream.on("progress", (chunkLength, downloaded, total) => {
+        downloadedBytes = downloaded;
+        const percent = Math.floor((downloaded / total) * 60) + 10; // 10-70%
+        onProgress(Math.min(percent, 70));
+      });
+
+      audioStream.on("error", (err) => {
+        console.error("ytdl-core download error:", err.message);
+        reject(err);
+      });
+
+      writeStream.on("error", reject);
+      writeStream.on("finish", resolve);
+
+      audioStream.pipe(writeStream);
+    });
+
+    console.log("Download complete, converting to MP3...");
+    onProgress(75);
+
+    // Convert to MP3 using ffmpeg
+    await new Promise((resolve, reject) => {
+      ffmpegLib(tempAudioPath)
+        .audioBitrate(320)
+        .audioCodec("libmp3lame")
+        .toFormat("mp3")
+        .on("progress", (progress) => {
+          const percent = Math.floor(75 + (progress.percent || 0) * 0.15); // 75-90%
+          onProgress(Math.min(percent, 90));
+        })
+        .on("error", (err) => {
+          console.error("FFmpeg conversion error:", err.message);
+          reject(err);
+        })
+        .on("end", () => {
+          console.log("MP3 conversion complete!");
+          resolve();
+        })
+        .save(outputPath);
+    });
+
+    // Clean up temp audio file
+    if (fs.existsSync(tempAudioPath)) {
+      fs.unlinkSync(tempAudioPath);
     }
 
-    console.log(`Executing: ${ytDlpCmd}`);
-    await execAsync(ytDlpCmd, { shell: true, maxBuffer: 10 * 1024 * 1024 });
-
-    console.log("Download and conversion complete!");
     onProgress(90);
 
     // Add ID3 tags
@@ -137,6 +179,13 @@ export async function downloadAndConvert(
     };
   } catch (error) {
     // Cleanup on error
+    if (fs.existsSync(tempAudioPath)) {
+      try {
+        fs.unlinkSync(tempAudioPath);
+      } catch (e) {
+        // Ignore cleanup errors
+      }
+    }
     if (fs.existsSync(outputPath)) {
       try {
         fs.unlinkSync(outputPath);

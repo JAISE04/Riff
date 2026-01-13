@@ -11,12 +11,9 @@ RUN npm run build
 FROM node:20-slim
 WORKDIR /app
 
-# Install system dependencies (ffmpeg, yt-dlp, python for yt-dlp)
+# Install ffmpeg only (ytdl-core handles YouTube downloads natively)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
-    python3 \
-    python3-pip \
-    && pip3 install --break-system-packages yt-dlp \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
