@@ -81,24 +81,24 @@ async function getDownloadUrl(videoUrl, videoId) {
   const errors = [];
 
   // Method 1: Use Piped API (privacy-friendly YouTube frontend)
+  // These are verified working Piped API instances
   const pipedInstances = [
     "https://pipedapi.kavin.rocks",
-    "https://pipedapi.adminforge.de",
-    "https://api.piped.yt"
+    "https://pipedapi.r4fo.com",
+    "https://pipedapi.darkness.services"
   ];
 
   for (const instance of pipedInstances) {
     try {
-      console.log(`Trying Piped: ${instance}`);
-      const response = await axios.get(
-        `${instance}/streams/${videoId}`,
-        { 
-          timeout: 20000,
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-          }
+      const apiUrl = `${instance}/streams/${videoId}`;
+      console.log(`Trying Piped: ${apiUrl}`);
+      const response = await axios.get(apiUrl, { 
+        timeout: 20000,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "application/json"
         }
-      );
+      });
 
       const audioStreams = response.data?.audioStreams || [];
       // Sort by bitrate, prefer highest quality
@@ -118,24 +118,23 @@ async function getDownloadUrl(videoUrl, videoId) {
 
   // Method 2: Use Invidious API (YouTube frontend) to get audio stream
   const invidiousInstances = [
-    "https://inv.nadeko.net",
-    "https://invidious.private.coffee",
-    "https://iv.datura.network",
-    "https://invidious.protokolla.fi"
+    "https://invidious.jing.rocks",
+    "https://yewtu.be",
+    "https://vid.puffyan.us",
+    "https://invidious.snopyta.org"
   ];
 
   for (const instance of invidiousInstances) {
     try {
-      console.log(`Trying Invidious: ${instance}`);
-      const response = await axios.get(
-        `${instance}/api/v1/videos/${videoId}`,
-        { 
-          timeout: 20000,
-          headers: {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-          }
+      const apiUrl = `${instance}/api/v1/videos/${videoId}`;
+      console.log(`Trying Invidious: ${apiUrl}`);
+      const response = await axios.get(apiUrl, { 
+        timeout: 20000,
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+          "Accept": "application/json"
         }
-      );
+      });
 
       const formats = response.data?.adaptiveFormats || [];
       const audioFormats = formats
