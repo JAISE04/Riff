@@ -80,84 +80,48 @@ function sanitizeFilename(name) {
 async function getDownloadUrl(videoUrl, videoId) {
   const errors = [];
 
-  // Method 1: Try Cobalt API with correct v10 format
-  const cobaltInstances = [
-    "https://api.cobalt.tools",
-    "https://co.eepy.today"
+  // Method 1: Use Piped API (privacy-friendly YouTube frontend)
+  const pipedInstances = [
+    "https://pipedapi.kavin.rocks",
+    "https://pipedapi.adminforge.de",
+    "https://api.piped.yt"
   ];
 
-  for (const apiBase of cobaltInstances) {
+  for (const instance of pipedInstances) {
     try {
-      console.log(`Trying Cobalt API: ${apiBase}`);
-      
-      const response = await axios.post(
-        `${apiBase}/`,
-        {
-          url: videoUrl,
-          videoQuality: "144",
-          audioFormat: "mp3",
-          audioBitrate: "320",
-          filenameStyle: "basic",
-          downloadMode: "audio"
-        },
-        {
+      console.log(`Trying Piped: ${instance}`);
+      const response = await axios.get(
+        `${instance}/streams/${videoId}`,
+        { 
+          timeout: 20000,
           headers: {
-            "Accept": "application/json",
-            "Content-Type": "application/json"
-          },
-          timeout: 30000
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          }
         }
       );
 
-      const data = response.data;
-      if (data?.url) {
-        console.log(`Got download URL from Cobalt: ${apiBase}`);
-        return { url: data.url, type: "direct" };
-      }
-      if (data?.audio) {
-        console.log(`Got audio URL from Cobalt: ${apiBase}`);
-        return { url: data.audio, type: "direct" };
-      }
+      const audioStreams = response.data?.audioStreams || [];
+      // Sort by bitrate, prefer highest quality
+      const sortedAudio = audioStreams
+        .filter(s => s.mimeType?.includes("audio"))
+        .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
 
+      if (sortedAudio.length > 0) {
+        console.log(`Got audio URL from Piped: ${instance}`);
+        return { url: sortedAudio[0].url, type: "stream" };
+      }
     } catch (error) {
-      console.log(`Cobalt ${apiBase} failed: ${error.message}`);
-      errors.push(`Cobalt: ${error.message}`);
+      console.log(`Piped ${instance} failed: ${error.message}`);
+      errors.push(`Piped: ${error.message}`);
     }
   }
 
-  // Method 2: Try y2mate-style APIs
-  const y2mateApis = [
-    {
-      name: "savefrom",
-      search: `https://api.saveservall.xyz/api/info?url=${encodeURIComponent(videoUrl)}`,
-    }
-  ];
-
-  for (const api of y2mateApis) {
-    try {
-      console.log(`Trying ${api.name}...`);
-      const response = await axios.get(api.search, { timeout: 15000 });
-      
-      if (response.data?.audio?.url) {
-        return { url: response.data.audio.url, type: "direct" };
-      }
-      if (response.data?.formats) {
-        const audioFormat = response.data.formats.find(f => f.mimeType?.includes("audio"));
-        if (audioFormat?.url) {
-          return { url: audioFormat.url, type: "direct" };
-        }
-      }
-    } catch (error) {
-      console.log(`${api.name} failed: ${error.message}`);
-      errors.push(`${api.name}: ${error.message}`);
-    }
-  }
-
-  // Method 3: Use Invidious API (YouTube frontend) to get audio stream
+  // Method 2: Use Invidious API (YouTube frontend) to get audio stream
   const invidiousInstances = [
-    "https://invidious.fdn.fr",
     "https://inv.nadeko.net",
-    "https://invidious.nerdvpn.de"
+    "https://invidious.private.coffee",
+    "https://iv.datura.network",
+    "https://invidious.protokolla.fi"
   ];
 
   for (const instance of invidiousInstances) {
@@ -165,7 +129,12 @@ async function getDownloadUrl(videoUrl, videoId) {
       console.log(`Trying Invidious: ${instance}`);
       const response = await axios.get(
         `${instance}/api/v1/videos/${videoId}`,
-        { timeout: 15000 }
+        { 
+          timeout: 20000,
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          }
+        }
       );
 
       const formats = response.data?.adaptiveFormats || [];
@@ -181,6 +150,36 @@ async function getDownloadUrl(videoUrl, videoId) {
       console.log(`Invidious ${instance} failed: ${error.message}`);
       errors.push(`Invidious: ${error.message}`);
     }
+  }
+
+  // Method 3: Try Cobalt with proper API key header
+  try {
+    console.log("Trying Cobalt API with proper headers...");
+    const response = await axios.post(
+      "https://api.cobalt.tools/",
+      {
+        url: videoUrl,
+        aFormat: "mp3",
+        isAudioOnly: true,
+        audioBitrate: "320"
+      },
+      {
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json",
+          "User-Agent": "Mozilla/5.0"
+        },
+        timeout: 30000
+      }
+    );
+
+    if (response.data?.url) {
+      console.log("Got download URL from Cobalt");
+      return { url: response.data.url, type: "direct" };
+    }
+  } catch (error) {
+    console.log(`Cobalt failed: ${error.message}`);
+    errors.push(`Cobalt: ${error.message}`);
   }
 
   throw new Error(`All download methods failed: ${errors.slice(0, 3).join("; ")}`);
