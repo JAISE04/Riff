@@ -7,7 +7,6 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import os from "os";
-import play from "play-dl";
 
 const execAsync = promisify(exec);
 
@@ -61,6 +60,13 @@ const FFPROBE_PATH =
 ffmpegLib.setFfmpegPath(FFMPEG_PATH);
 ffmpegLib.setFfprobePath(FFPROBE_PATH);
 
+// Cobalt API instances (free, open-source YouTube download service)
+const COBALT_APIS = [
+  "https://api.cobalt.tools",
+  "https://cobalt-api.kwiatekmiki.com", 
+  "https://cobalt.api.timelessnesses.me"
+];
+
 // Ensure temp directory exists
 if (!fs.existsSync(TEMP_PATH)) {
   fs.mkdirSync(TEMP_PATH, { recursive: true });
@@ -75,6 +81,46 @@ function sanitizeFilename(name) {
     .replace(/\s+/g, " ") // Normalize whitespace
     .trim()
     .substring(0, 100); // Limit length
+}
+
+// Try to get download URL from Cobalt API
+async function getCobaltDownloadUrl(videoUrl) {
+  for (const apiBase of COBALT_APIS) {
+    try {
+      console.log(`Trying Cobalt API: ${apiBase}`);
+      
+      const response = await axios.post(
+        `${apiBase}/`,
+        {
+          url: videoUrl,
+          downloadMode: "audio",
+          audioFormat: "mp3",
+          audioBitrate: "320"
+        },
+        {
+          headers: {
+            "Accept": "application/json",
+            "Content-Type": "application/json"
+          },
+          timeout: 30000
+        }
+      );
+
+      if (response.data?.url) {
+        console.log(`Got download URL from ${apiBase}`);
+        return response.data.url;
+      }
+      
+      if (response.data?.status === "tunnel" || response.data?.status === "redirect") {
+        return response.data.url;
+      }
+
+    } catch (error) {
+      console.log(`Cobalt API ${apiBase} failed: ${error.message}`);
+      continue;
+    }
+  }
+  throw new Error("All Cobalt API instances failed");
 }
 
 // Download audio from YouTube and convert to MP3
@@ -94,44 +140,55 @@ export async function downloadAndConvert(
   const safeTitle = metadata.title ? sanitizeFilename(metadata.title) : jobId;
   // Use jobId for the actual file to avoid path issues, rename later
   const outputPath = path.join(TEMP_PATH, `${jobId}.mp3`);
-  const tempAudioPath = path.join(TEMP_PATH, `${jobId}_temp.webm`);
+  const tempAudioPath = path.join(TEMP_PATH, `${jobId}_temp.mp3`);
 
   try {
     onProgress(10);
 
-    console.log("Starting download with play-dl...");
+    console.log("Getting download URL from Cobalt API...");
 
-    // Get stream using play-dl (handles YouTube bot detection better)
-    const stream = await play.stream(videoUrl, { quality: 2 }); // quality 2 = highest audio
+    // Get download URL from Cobalt
+    const downloadUrl = await getCobaltDownloadUrl(videoUrl);
     
-    onProgress(20);
+    onProgress(30);
+    console.log("Downloading audio file...");
 
-    // Write stream to temp file
-    await new Promise((resolve, reject) => {
-      const writeStream = fs.createWriteStream(tempAudioPath);
-      
-      stream.stream.on("error", (err) => {
-        console.error("play-dl stream error:", err.message);
-        reject(err);
-      });
-
-      writeStream.on("error", reject);
-      writeStream.on("finish", resolve);
-
-      stream.stream.pipe(writeStream);
+    // Download the audio file
+    const response = await axios({
+      method: "GET",
+      url: downloadUrl,
+      responseType: "stream",
+      timeout: 120000,
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      }
     });
 
-    console.log("Download complete, converting to MP3...");
-    onProgress(60);
+    // Write to temp file
+    await new Promise((resolve, reject) => {
+      const writeStream = fs.createWriteStream(tempAudioPath);
+      response.data.pipe(writeStream);
+      writeStream.on("finish", resolve);
+      writeStream.on("error", reject);
+    });
 
-    // Convert to MP3 using ffmpeg
+    console.log("Download complete!");
+    onProgress(70);
+
+    // Check if we need to convert or just rename
+    const fileSize = fs.statSync(tempAudioPath).size;
+    if (fileSize < 1000) {
+      throw new Error("Downloaded file is too small, download may have failed");
+    }
+
+    // Ensure it's proper MP3 format with ffmpeg
     await new Promise((resolve, reject) => {
       ffmpegLib(tempAudioPath)
         .audioBitrate(320)
         .audioCodec("libmp3lame")
         .toFormat("mp3")
         .on("progress", (progress) => {
-          const percent = Math.floor(60 + (progress.percent || 0) * 0.3); // 60-90%
+          const percent = Math.floor(70 + (progress.percent || 0) * 0.2);
           onProgress(Math.min(percent, 90));
         })
         .on("error", (err) => {
@@ -139,13 +196,13 @@ export async function downloadAndConvert(
           reject(err);
         })
         .on("end", () => {
-          console.log("MP3 conversion complete!");
+          console.log("MP3 processing complete!");
           resolve();
         })
         .save(outputPath);
     });
 
-    // Clean up temp audio file
+    // Clean up temp file
     if (fs.existsSync(tempAudioPath)) {
       fs.unlinkSync(tempAudioPath);
     }
