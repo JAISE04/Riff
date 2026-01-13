@@ -1,9 +1,8 @@
 services:
   - type: web
     name: riff
-    env: node
-    buildCommand: npm install && cd frontend && npm install && npm run build && cd ../backend && npm install
-    startCommand: cd backend && npm start
+    runtime: docker
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /health
     envVars:
       - key: NODE_ENV
@@ -14,13 +13,3 @@ services:
         sync: false
       - key: SPOTIFY_CLIENT_SECRET
         sync: false
-      - key: FRONTEND_URL
-        fromService:
-          type: web
-          name: riff
-          property: host
-    # Install ffmpeg and yt-dlp
-    buildFilter:
-      paths:
-        - backend/**
-        - frontend/**
