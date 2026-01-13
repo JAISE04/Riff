@@ -11,9 +11,12 @@ RUN npm run build
 FROM node:20-slim
 WORKDIR /app
 
-# Install ffmpeg only (ytdl-core handles YouTube downloads natively)
+# Install ffmpeg and build tools for native modules (better-sqlite3)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
+    python3 \
+    make \
+    g++ \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
