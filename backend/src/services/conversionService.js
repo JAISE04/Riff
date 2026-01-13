@@ -60,13 +60,6 @@ const FFPROBE_PATH =
 ffmpegLib.setFfmpegPath(FFMPEG_PATH);
 ffmpegLib.setFfprobePath(FFPROBE_PATH);
 
-// Cobalt API instances (free, open-source YouTube download service)
-const COBALT_APIS = [
-  "https://api.cobalt.tools",
-  "https://cobalt-api.kwiatekmiki.com", 
-  "https://cobalt.api.timelessnesses.me"
-];
-
 // Ensure temp directory exists
 if (!fs.existsSync(TEMP_PATH)) {
   fs.mkdirSync(TEMP_PATH, { recursive: true });
@@ -83,9 +76,17 @@ function sanitizeFilename(name) {
     .substring(0, 100); // Limit length
 }
 
-// Try to get download URL from Cobalt API
-async function getCobaltDownloadUrl(videoUrl) {
-  for (const apiBase of COBALT_APIS) {
+// Try to get download URL using multiple methods
+async function getDownloadUrl(videoUrl, videoId) {
+  const errors = [];
+
+  // Method 1: Try Cobalt API with correct v10 format
+  const cobaltInstances = [
+    "https://api.cobalt.tools",
+    "https://co.eepy.today"
+  ];
+
+  for (const apiBase of cobaltInstances) {
     try {
       console.log(`Trying Cobalt API: ${apiBase}`);
       
@@ -93,9 +94,11 @@ async function getCobaltDownloadUrl(videoUrl) {
         `${apiBase}/`,
         {
           url: videoUrl,
-          downloadMode: "audio",
+          videoQuality: "144",
           audioFormat: "mp3",
-          audioBitrate: "320"
+          audioBitrate: "320",
+          filenameStyle: "basic",
+          downloadMode: "audio"
         },
         {
           headers: {
@@ -106,21 +109,81 @@ async function getCobaltDownloadUrl(videoUrl) {
         }
       );
 
-      if (response.data?.url) {
-        console.log(`Got download URL from ${apiBase}`);
-        return response.data.url;
+      const data = response.data;
+      if (data?.url) {
+        console.log(`Got download URL from Cobalt: ${apiBase}`);
+        return { url: data.url, type: "direct" };
       }
-      
-      if (response.data?.status === "tunnel" || response.data?.status === "redirect") {
-        return response.data.url;
+      if (data?.audio) {
+        console.log(`Got audio URL from Cobalt: ${apiBase}`);
+        return { url: data.audio, type: "direct" };
       }
 
     } catch (error) {
-      console.log(`Cobalt API ${apiBase} failed: ${error.message}`);
-      continue;
+      console.log(`Cobalt ${apiBase} failed: ${error.message}`);
+      errors.push(`Cobalt: ${error.message}`);
     }
   }
-  throw new Error("All Cobalt API instances failed");
+
+  // Method 2: Try y2mate-style APIs
+  const y2mateApis = [
+    {
+      name: "savefrom",
+      search: `https://api.saveservall.xyz/api/info?url=${encodeURIComponent(videoUrl)}`,
+    }
+  ];
+
+  for (const api of y2mateApis) {
+    try {
+      console.log(`Trying ${api.name}...`);
+      const response = await axios.get(api.search, { timeout: 15000 });
+      
+      if (response.data?.audio?.url) {
+        return { url: response.data.audio.url, type: "direct" };
+      }
+      if (response.data?.formats) {
+        const audioFormat = response.data.formats.find(f => f.mimeType?.includes("audio"));
+        if (audioFormat?.url) {
+          return { url: audioFormat.url, type: "direct" };
+        }
+      }
+    } catch (error) {
+      console.log(`${api.name} failed: ${error.message}`);
+      errors.push(`${api.name}: ${error.message}`);
+    }
+  }
+
+  // Method 3: Use Invidious API (YouTube frontend) to get audio stream
+  const invidiousInstances = [
+    "https://invidious.fdn.fr",
+    "https://inv.nadeko.net",
+    "https://invidious.nerdvpn.de"
+  ];
+
+  for (const instance of invidiousInstances) {
+    try {
+      console.log(`Trying Invidious: ${instance}`);
+      const response = await axios.get(
+        `${instance}/api/v1/videos/${videoId}`,
+        { timeout: 15000 }
+      );
+
+      const formats = response.data?.adaptiveFormats || [];
+      const audioFormats = formats
+        .filter(f => f.type?.includes("audio"))
+        .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
+
+      if (audioFormats.length > 0) {
+        console.log(`Got audio URL from Invidious: ${instance}`);
+        return { url: audioFormats[0].url, type: "stream" };
+      }
+    } catch (error) {
+      console.log(`Invidious ${instance} failed: ${error.message}`);
+      errors.push(`Invidious: ${error.message}`);
+    }
+  }
+
+  throw new Error(`All download methods failed: ${errors.slice(0, 3).join("; ")}`);
 }
 
 // Download audio from YouTube and convert to MP3
@@ -140,27 +203,27 @@ export async function downloadAndConvert(
   const safeTitle = metadata.title ? sanitizeFilename(metadata.title) : jobId;
   // Use jobId for the actual file to avoid path issues, rename later
   const outputPath = path.join(TEMP_PATH, `${jobId}.mp3`);
-  const tempAudioPath = path.join(TEMP_PATH, `${jobId}_temp.mp3`);
+  const tempAudioPath = path.join(TEMP_PATH, `${jobId}_temp.webm`);
 
   try {
     onProgress(10);
 
-    console.log("Getting download URL from Cobalt API...");
+    console.log("Getting download URL...");
 
-    // Get download URL from Cobalt
-    const downloadUrl = await getCobaltDownloadUrl(videoUrl);
+    // Get download URL using multiple methods
+    const downloadInfo = await getDownloadUrl(videoUrl, videoId);
     
     onProgress(30);
-    console.log("Downloading audio file...");
+    console.log(`Downloading audio file (type: ${downloadInfo.type})...`);
 
     // Download the audio file
     const response = await axios({
       method: "GET",
-      url: downloadUrl,
+      url: downloadInfo.url,
       responseType: "stream",
       timeout: 120000,
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
       }
     });
 
