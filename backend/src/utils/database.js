@@ -1,12 +1,21 @@
 import Database from "better-sqlite3";
 import path from "path";
 import { fileURLToPath } from "url";
+import fs from "fs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Database file path (in backend folder)
-const dbPath = path.join(__dirname, "..", "..", "riff.db");
+// Database file path - use temp folder for write access in containers
+const tempPath = process.env.TEMP_FILES_PATH || "./temp";
+const dbDir = path.join(__dirname, "..", "..", tempPath);
+
+// Ensure directory exists
+if (!fs.existsSync(dbDir)) {
+  fs.mkdirSync(dbDir, { recursive: true });
+}
+
+const dbPath = path.join(dbDir, "riff.db");
 
 // Initialize database
 const db = new Database(dbPath);
