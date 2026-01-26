@@ -3,15 +3,20 @@ import path from "path";
 
 // Get the public download URL for a file
 export function getDownloadUrl(filename) {
-  // In production, use RAILWAY_PUBLIC_DOMAIN or BACKEND_URL
-  // Railway automatically sets RAILWAY_PUBLIC_DOMAIN
+  // Support multiple deployment platforms
   let baseUrl;
 
-  if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+  if (process.env.RENDER_EXTERNAL_URL) {
+    // Render provides this automatically
+    baseUrl = process.env.RENDER_EXTERNAL_URL;
+  } else if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+    // Railway provides this (legacy support)
     baseUrl = `https://${process.env.RAILWAY_PUBLIC_DOMAIN}`;
   } else if (process.env.BACKEND_URL) {
+    // Custom backend URL environment variable
     baseUrl = process.env.BACKEND_URL;
   } else {
+    // Local development
     baseUrl = `http://localhost:${process.env.PORT || 3001}`;
   }
 
