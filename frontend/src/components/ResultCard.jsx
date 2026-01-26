@@ -1,4 +1,5 @@
 import { formatFileSize } from "../services/api";
+import { Download, RotateCcw, CheckCircle, FileAudio, Music } from "lucide-react";
 
 export default function ResultCard({ data, onDownload, onReset }) {
   const { metadata, downloadUrl, filename, fileSize, quality, playlistInfo } =
@@ -6,79 +7,49 @@ export default function ResultCard({ data, onDownload, onReset }) {
   const isPlaylist = metadata?.isPlaylist || playlistInfo;
 
   const handleDownloadClick = (e) => {
-    // Don't prevent default - let the download happen
     onDownload();
   };
 
   return (
-    <div className="space-y-4">
+    <div className="max-w-3xl mx-auto px-4 space-y-4">
       {/* Success Card */}
-      <div className="bg-gradient-to-br from-spotify-lightGray to-spotify-black rounded-2xl overflow-hidden shadow-xl">
-        {/* Album Art Header */}
-        <div className="relative">
-          {metadata?.coverUrl ? (
-            <div className="relative">
-              <img
-                src={metadata.coverUrl}
-                alt={metadata.title}
-                className="w-full aspect-square object-cover"
-              />
-              {/* Gradient overlay */}
-              <div className="absolute inset-0 bg-gradient-to-t from-spotify-lightGray via-transparent to-transparent"></div>
-            </div>
-          ) : (
-            <div className="w-full aspect-square bg-spotify-gray flex items-center justify-center">
-              <svg
-                className="w-24 h-24 text-spotify-lightGray"
-                fill="currentColor"
-                viewBox="0 0 20 20"
-              >
-                <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
-              </svg>
-            </div>
-          )}
-
-          {/* Success Badge */}
-          <div className="absolute top-4 right-4">
-            <div className="bg-spotify-green text-black px-3 py-1 rounded-full text-sm font-semibold flex items-center gap-1">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              Ready
-            </div>
+      <div className="rounded-3xl bg-white/10 backdrop-blur-md border border-white/20 overflow-hidden">
+        {/* Album Art or Placeholder */}
+        {metadata?.coverUrl ? (
+          <img
+            src={metadata.coverUrl}
+            alt={metadata.title}
+            className="w-full aspect-video object-cover rounded-t-3xl"
+          />
+        ) : (
+          <div className="w-full aspect-video bg-gradient-to-br from-purple-500/30 to-pink-500/30 flex items-center justify-center rounded-t-3xl">
+            <Music className="w-20 h-20 text-white/40" />
           </div>
-        </div>
+        )}
 
-        {/* Track Info */}
-        <div className="p-5 space-y-4">
+        {/* Content */}
+        <div className="p-8 space-y-6">
+          {/* Track Info */}
           <div>
-            <h2 className="text-xl font-bold text-white truncate">
+            <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
               {metadata?.title || "Unknown Track"}
-              {isPlaylist && (
-                <span className="ml-2 text-sm bg-spotify-green/20 text-spotify-green px-2 py-0.5 rounded-full">
-                  Playlist
-                </span>
-              )}
             </h2>
-            <p className="text-spotify-gray truncate">
+            <p className="text-white/70 text-lg md:text-xl">
               {metadata?.artist || "Unknown Artist"}
             </p>
             {metadata?.album && !isPlaylist && (
-              <p className="text-spotify-gray text-sm truncate mt-1">
+              <p className="text-white/50 text-base mt-2">
                 {metadata.album}
               </p>
             )}
+            
             {isPlaylist && playlistInfo && (
-              <div className="mt-2 text-sm">
-                <p className="text-spotify-green">
+              <div className="mt-4 space-y-2 text-base">
+                <p className="text-emerald-300 font-semibold">
                   ✓ {playlistInfo.completedTracks} tracks downloaded
                 </p>
                 {playlistInfo.failedTracks > 0 && (
-                  <p className="text-red-400">
+                  <p className="text-red-300 font-semibold">
                     ✗ {playlistInfo.failedTracks} tracks failed
                   </p>
                 )}
@@ -86,33 +57,19 @@ export default function ResultCard({ data, onDownload, onReset }) {
             )}
           </div>
 
-          {/* File Info */}
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-1.5 text-spotify-green">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span className="font-medium">{quality}</span>
+          {/* File Info Stats */}
+          <div className="grid grid-cols-3 gap-3 pt-4">
+            <div className="bg-white/10 rounded-lg p-3">
+              <p className="text-white/60 text-xs font-medium">QUALITY</p>
+              <p className="text-white font-bold text-lg mt-1">{quality}</p>
             </div>
-            <div className="flex items-center gap-1.5 text-spotify-gray">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path
-                  fillRule="evenodd"
-                  d="M3 17a1 1 0 011-1h12a1 1 0 110 2H4a1 1 0 01-1-1zm3.293-7.707a1 1 0 011.414 0L9 10.586V3a1 1 0 112 0v7.586l1.293-1.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"
-                  clipRule="evenodd"
-                />
-              </svg>
-              <span>{formatFileSize(fileSize)}</span>
+            <div className="bg-white/10 rounded-lg p-3">
+              <p className="text-white/60 text-xs font-medium">SIZE</p>
+              <p className="text-white font-bold text-lg mt-1">{formatFileSize(fileSize)}</p>
             </div>
-            <div className="flex items-center gap-1.5 text-spotify-gray">
-              <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M18 3a1 1 0 00-1.196-.98l-10 2A1 1 0 006 5v9.114A4.369 4.369 0 005 14c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V7.82l8-1.6v5.894A4.37 4.37 0 0015 12c-1.657 0-3 .895-3 2s1.343 2 3 2 3-.895 3-2V3z" />
-              </svg>
-              <span>{isPlaylist ? "ZIP" : "MP3"}</span>
+            <div className="bg-white/10 rounded-lg p-3">
+              <p className="text-white/60 text-xs font-medium">FORMAT</p>
+              <p className="text-white font-bold text-lg mt-1">{isPlaylist ? "ZIP" : "MP3"}</p>
             </div>
           </div>
 
@@ -121,24 +78,10 @@ export default function ResultCard({ data, onDownload, onReset }) {
             href={downloadUrl}
             download={filename}
             onClick={handleDownloadClick}
-            className="block w-full py-4 px-6 bg-spotify-green hover:bg-spotify-greenDark text-black font-semibold text-center rounded-full transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg shadow-spotify-green/25"
+            className="block w-full py-4 px-6 bg-white text-purple-600 font-bold text-center rounded-2xl transition-all duration-300 hover:shadow-2xl hover:shadow-white/40 active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-white/20"
           >
-            <span className="flex items-center justify-center gap-2">
-              <svg
-                className="w-5 h-5"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-                />
-              </svg>
-              {isPlaylist ? "Download ZIP" : "Download MP3"}
-            </span>
+            <Download className="w-5 h-5" />
+            {isPlaylist ? "Download ZIP File" : "Download MP3"}
           </a>
         </div>
       </div>
@@ -146,8 +89,9 @@ export default function ResultCard({ data, onDownload, onReset }) {
       {/* Convert Another Button */}
       <button
         onClick={onReset}
-        className="w-full py-3 px-6 bg-transparent border border-spotify-gray text-white font-medium rounded-full hover:bg-spotify-lightGray transition-colors"
+        className="w-full max-w-3xl mx-auto py-4 px-6 bg-white/15 hover:bg-white/25 border border-white/20 text-white font-bold rounded-2xl transition-all duration-300 flex items-center justify-center gap-2"
       >
+        <RotateCcw className="w-5 h-5" />
         {isPlaylist ? "Convert Another Playlist" : "Convert Another Track"}
       </button>
     </div>

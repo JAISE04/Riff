@@ -5,6 +5,7 @@ import ResultCard from "./components/ResultCard";
 import IOSModal from "./components/IOSModal";
 import Header from "./components/Header";
 import Footer from "./components/Footer";
+import SeoAccordion from "./components/SeoAccordion";
 import { convertSpotifyUrl, checkStatus } from "./services/api";
 
 function App() {
@@ -291,111 +292,79 @@ function App() {
 
       <Header />
 
-      <main className="flex-1 flex flex-col items-center justify-center px-4 py-8 safe-area-top safe-area-bottom relative z-10">
-        <div className="w-full max-w-md mx-auto">
+      <main className="flex-1 flex flex-col items-center px-4 pt-8 pb-12 relative z-10">
+        <div className="w-full max-w-2xl mx-auto">
           {/* Main Content */}
-          <div className="space-y-6">
-            {/* Ultra Stylish Logo Section */}
-            <div className="text-center mb-10">
+          <div className="space-y-8">
+            {/* Clean Logo Section */}
+            <div className="text-center mb-8">
               {/* Main Riff Logo */}
-              <div className="relative inline-block">
-                {/* Multiple glow layers */}
-                <div className="absolute inset-0 blur-3xl opacity-60">
-                  <h1 className="text-6xl md:text-8xl logo-font bg-gradient-to-r from-spotify-green to-emerald-400 bg-clip-text text-transparent">
-                    Riff
-                  </h1>
-                </div>
-                <div className="absolute inset-0 blur-xl opacity-40">
-                  <h1 className="text-6xl md:text-8xl logo-font bg-gradient-to-r from-red-500 to-orange-400 bg-clip-text text-transparent">
+              <div className="relative inline-block mb-6">
+                {/* Glow effect */}
+                <div className="absolute inset-0 blur-3xl opacity-50">
+                  <h1 className="text-7xl md:text-9xl font-black bg-gradient-to-r from-emerald-400 to-green-500 bg-clip-text text-transparent">
                     Riff
                   </h1>
                 </div>
 
                 {/* Main logo text */}
-                <h1
-                  className="relative text-6xl md:text-8xl logo-font tracking-tight logo-breathe"
-                  style={{
-                    textShadow:
-                      "0 0 60px rgba(29,185,84,0.6), 0 0 120px rgba(29,185,84,0.3), 0 4px 12px rgba(0,0,0,0.8)",
-                  }}
-                >
-                  <span className="bg-gradient-to-r from-spotify-green via-emerald-400 to-green-300 bg-clip-text text-transparent gradient-flow">
+                <h1 className="relative text-7xl md:text-9xl font-black tracking-tight">
+                  <span className="bg-gradient-to-r from-emerald-400 via-green-400 to-cyan-400 bg-clip-text text-transparent drop-shadow-2xl">
                     Riff
                   </span>
                 </h1>
 
                 {/* Animated equalizer bars */}
-                <div className="absolute -right-10 md:-right-12 top-1/2 -translate-y-1/2 flex items-end gap-[3px] h-10">
-                  {[...Array(6)].map((_, i) => (
+                <div className="absolute -right-8 md:-right-10 top-1/2 -translate-y-1/2 flex items-end gap-[3px] h-8 md:h-10">
+                  {[...Array(5)].map((_, i) => (
                     <div
                       key={i}
                       className="w-[4px] rounded-full origin-bottom"
                       style={{
                         height: "100%",
-                        background: `linear-gradient(to top, #1DB954, #22c55e, #fbbf24, #f97316, #ef4444)`,
-                        animation: `bar-dance ${
-                          0.5 + i * 0.1
-                        }s ease-in-out infinite`,
-                        animationDelay: `${i * 0.1}s`,
+                        background: `linear-gradient(to top, #22c55e, #fbbf24, #ef4444)`,
+                        animation: `bar-dance ${0.4 + i * 0.08}s ease-in-out infinite`,
+                        animationDelay: `${i * 0.08}s`,
                       }}
                     />
                   ))}
                 </div>
 
-                {/* Floating music icons */}
-                <span
-                  className="absolute -left-8 -top-4 text-3xl float opacity-70"
-                  style={{ animationDelay: "0s" }}
-                >
-                  🎵
-                </span>
-                <span
-                  className="absolute -right-4 -bottom-2 text-2xl float opacity-50"
-                  style={{ animationDelay: "-2s" }}
-                >
-                  🎶
-                </span>
+                {/* Music note */}
+                <span className="absolute -left-6 -top-2 text-2xl opacity-60">🎵</span>
               </div>
 
-              {/* Tagline with animated underline */}
-              <div className="mt-6 relative">
-                <p className="text-gray-400 text-sm md:text-base font-light tracking-widest uppercase">
-                  <span className="text-spotify-green font-semibold">
-                    Spotify
-                  </span>
-                  <span className="mx-2 text-gray-600">&</span>
-                  <span className="text-red-500 font-semibold">YouTube</span>
-                  <span className="mx-2 text-gray-600">→</span>
-                  <span className="text-white font-semibold">MP3</span>
-                </p>
-                {/* Animated underline */}
-                <div className="mt-3 mx-auto w-32 h-[2px] bg-gradient-to-r from-transparent via-spotify-green to-transparent pulse-glow"></div>
-              </div>
+              {/* Tagline */}
+              <p className="text-white/50 text-sm md:text-base font-medium tracking-widest uppercase">
+                <span className="text-green-400">Spotify</span>
+                <span className="mx-2">&</span>
+                <span className="text-red-400">YouTube</span>
+                <span className="mx-2">→</span>
+                <span className="text-white">MP3</span>
+              </p>
             </div>
 
             {/* Input Section - shown when idle or error */}
             {(state === "idle" || state === "error") && (
-              <div className="backdrop-blur-2xl bg-white/[0.03] rounded-3xl p-6 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
-                <SpotifyInput
-                  value={spotifyUrl}
-                  onChange={setSpotifyUrl}
-                  onSubmit={handleConvert}
-                  isValid={isValidUrl}
-                  error={error}
-                />
-              </div>
+              <SpotifyInput
+                value={spotifyUrl}
+                onChange={setSpotifyUrl}
+                onSubmit={handleConvert}
+                isValid={isValidUrl}
+                error={error}
+              />
             )}
 
             {/* Converting State */}
             {state === "converting" && conversionData && (
-              <div className="backdrop-blur-2xl bg-white/[0.03] rounded-3xl p-6 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+              <div className="rounded-2xl bg-[#1a1a2e]/80 backdrop-blur-xl border border-white/10 p-6 shadow-2xl">
                 <ConversionProgress data={conversionData} />
               </div>
             )}
 
             {/* Success State */}
             {state === "success" && conversionData && (
-              <div className="backdrop-blur-2xl bg-white/[0.03] rounded-3xl p-1 border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+              <div className="rounded-2xl bg-[#1a1a2e]/80 backdrop-blur-xl border border-white/10 shadow-2xl overflow-hidden">
                 <ResultCard
                   data={conversionData}
                   onDownload={handleDownload}
@@ -407,6 +376,7 @@ function App() {
         </div>
       </main>
 
+      <SeoAccordion />
       <Footer />
 
       {/* iOS Instructions Modal */}

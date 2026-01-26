@@ -8,7 +8,22 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Musical flowing logo font */
+/* Clean Purple-Pink Gradient - No Animation */
+body {
+  @apply text-white antialiased;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  min-height: 100vh;
+  min-height: 100dvh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+  position: relative;
+}
+
+/* Ensure content appears above background */
+#root {
+  position: relative;
+  z-index: 1;
+}
+
 .logo-font {
   font-family: "Unbounded", "Righteous", sans-serif;
   font-weight: 900;
@@ -18,13 +33,92 @@ html {
   scroll-behavior: smooth;
 }
 
-body {
-  @apply bg-spotify-darkGray text-white antialiased;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-    sans-serif;
-  min-height: 100vh;
-  min-height: 100dvh;
+/* Spotisaver-like header & search styles */
+.seo-mini-links a { text-decoration: none; }
+.spotisaver-logo, .logo-font { letter-spacing: 0.5px; }
+
+.search-section.glass {
+  margin-top: 36px;
+  display: flex;
+  justify-content: center;
+  padding: 40px 20px;
 }
+
+.search-section .base {
+  width: 100%;
+  max-width: 980px;
+}
+
+.search-container {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.input-wrapper {
+  position: relative;
+  flex: 1;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.06);
+  padding: 14px 18px;
+  border-radius: 14px;
+  backdrop-filter: blur(10px);
+}
+
+.search-input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  color: white;
+  outline: none;
+  font-size: 15px;
+  padding: 6px 0;
+}
+
+.placeholder-ghost {
+  position: absolute;
+  top: 50%;
+  left: 18px;
+  transform: translateY(-50%);
+  color: rgba(255,255,255,0.6);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.placeholder-ghost.hidden { opacity: 0; transform: translateY(-40%); }
+
+.btn-gradient {
+  background: linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+  color: white;
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: none;
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.btn-premium { transition: transform .12s ease; }
+.btn-premium:hover { transform: translateY(-2px); }
+
+/* Accordion / SEO styles */
+.seo-accordion__summary { background: rgba(255,255,255,0.02); }
+.seo-accordion__body { background: rgba(255,255,255,0.02); }
+
+/* Mobile menu overlay */
+.mobile-menu-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 40; display:none; }
+.mobile-menu-overlay.visible { display:block; }
+
+/* small helpers */
+.btn-close-white { color: #fff; }
+
+/* responsive tweaks */
+@media (max-width: 768px) {
+  .seo-mini-links { display:none; }
+  .spotisaver-logo { font-size: 28px; }
+  .search-section { padding: 20px 12px; }
+}
+
 
 /* Custom scrollbar */
 ::-webkit-scrollbar {
