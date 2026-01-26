@@ -7,6 +7,7 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import os from "os";
+import { getSpotifyToken } from "./spotifyService.js";
 
 const execAsync = promisify(exec);
 
@@ -76,112 +77,273 @@ function sanitizeFilename(name) {
     .substring(0, 100); // Limit length
 }
 
-// Try to get download URL using multiple methods
-async function getDownloadUrl(videoUrl, videoId) {
+// Search for song on JioSaavn using the unofficial API
+async function searchJioSaavn(title, artist) {
+  try {
+    const query = `${title} ${artist}`.trim();
+    console.log(`[JioSaavn] Searching for: ${query}`);
+    
+    // Use the saavn.dev API (unofficial but reliable)
+    const searchUrl = `https://saavn.dev/api/search/songs?query=${encodeURIComponent(query)}&limit=5`;
+    
+    const response = await axios.get(searchUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json"
+      },
+      timeout: 15000
+    });
+
+    console.log(`[JioSaavn] Response status: ${response.status}`);
+
+    const songs = response.data?.data?.results || [];
+    console.log(`[JioSaavn] Found ${songs.length} songs`);
+    
+    if (songs.length > 0) {
+      const song = songs[0];
+      console.log(`[JioSaavn] Top result:`, {
+        name: song.name,
+        artist: song.artists?.map(a => a.name).join(", "),
+        downloadUrlCount: song.downloadUrl?.length || 0
+      });
+      
+      // The API returns download URLs directly
+      const downloadUrls = song.downloadUrl || [];
+      
+      if (downloadUrls.length > 0) {
+        console.log(`[JioSaavn] Available qualities:`, downloadUrls.map(d => ({ quality: d.quality, hasUrl: !!d.url })));
+      }
+      
+      // Get highest quality available (prefer 320kbps)
+      const highQuality = downloadUrls.find(d => d.quality === "320kbps");
+      const medQuality = downloadUrls.find(d => d.quality === "160kbps");
+      const lowQuality = downloadUrls.find(d => d.quality === "96kbps");
+      
+      const bestUrl = highQuality?.url || medQuality?.url || lowQuality?.url;
+      
+      if (bestUrl) {
+        console.log(`[JioSaavn] ✓ Found song: ${song.name} (${highQuality ? '320kbps' : medQuality ? '160kbps' : '96kbps'})`);
+        return { url: bestUrl, source: "jiosaavn" };
+      } else {
+        console.log(`[JioSaavn] Song found but no valid URL`);
+      }
+    }
+  } catch (error) {
+    console.log(`[JioSaavn] ✗ Failed: ${error.message}`);
+  }
+  return null;
+}
+
+// Search using Deezer (has good coverage and allows preview streams)
+async function searchDeezer(title, artist) {
+  try {
+    const query = `${title} ${artist}`.trim();
+    console.log(`[Deezer] Searching for: ${query}`);
+    
+    const searchUrl = `https://api.deezer.com/search?q=${encodeURIComponent(query)}&limit=5`;
+    
+    const response = await axios.get(searchUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+      },
+      timeout: 15000
+    });
+
+    const tracks = response.data?.data || [];
+    console.log(`[Deezer] Found ${tracks.length} tracks`);
+    
+    if (tracks.length > 0) {
+      const track = tracks[0];
+      // Deezer provides 30-second preview URL (low quality but works)
+      if (track.preview) {
+        console.log(`[Deezer] ✓ Found: ${track.title} by ${track.artist?.name}`);
+        return { url: track.preview, source: "deezer-preview" };
+      }
+    }
+  } catch (error) {
+    console.log(`[Deezer] ✗ Failed: ${error.message}`);
+  }
+  return null;
+}
+
+// Get preview URL directly from Spotify metadata (if available)
+async function searchSpotifyPreview(title, artist, spotifyId) {
+  try {
+    console.log(`[Spotify Preview] Checking for audio preview`);
+    
+    // Note: The preview_url should be in the metadata already
+    // This is a fallback if metadata includes preview
+    // For now, we'll return null since we need the actual preview URL from metadata
+    return null;
+  } catch (error) {
+    console.log(`[Spotify Preview] ✗ Failed: ${error.message}`);
+  }
+  return null;
+}
+
+// Try using Spotisaver's API as a fallback (if available)
+async function searchSpotisaver(title, artist) {
+  try {
+    const query = `${title} ${artist}`.trim();
+    console.log(`[Spotisaver] Searching for: ${query}`);
+    
+    // Try different potential Spotisaver API endpoints
+    const endpoints = [
+      `https://api.spotisaver.com/download?query=${encodeURIComponent(query)}`,
+      `https://spotisaver.net/api/search?q=${encodeURIComponent(query)}`,
+      `https://spotisaver.xyz/api/download?track=${encodeURIComponent(query)}`
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        const response = await axios.get(endpoint, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+          },
+          timeout: 10000
+        });
+        
+        if (response.data?.url || response.data?.downloadUrl) {
+          const downloadUrl = response.data?.url || response.data?.downloadUrl;
+          console.log(`[Spotisaver] ✓ Found via ${endpoint}`);
+          return { url: downloadUrl, source: "spotisaver" };
+        }
+      } catch (e) {
+        // Try next endpoint
+      }
+    }
+    console.log(`[Spotisaver] ✗ Not found on any endpoint`);
+  } catch (error) {
+    console.log(`[Spotisaver] ✗ Failed: ${error.message}`);
+  }
+  return null;
+}
+
+// Get download URL from YouTube via Piped/Invidious
+async function getYouTubeUrl(videoId) {
   const errors = [];
 
-  // Method 1: Use Piped API (privacy-friendly YouTube frontend)
-  // These are verified working Piped API instances
+  // Piped instances - updated list
   const pipedInstances = [
     "https://pipedapi.kavin.rocks",
-    "https://pipedapi.r4fo.com",
-    "https://pipedapi.darkness.services"
+    "https://pipedapi.r4fo.com", 
+    "https://api.piped.privacydev.net"
   ];
 
   for (const instance of pipedInstances) {
     try {
-      const apiUrl = `${instance}/streams/${videoId}`;
-      console.log(`Trying Piped: ${apiUrl}`);
-      const response = await axios.get(apiUrl, { 
-        timeout: 20000,
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "application/json"
+      console.log(`[Piped] Trying: ${instance}`);
+      const response = await axios.get(
+        `${instance}/streams/${videoId}`,
+        { 
+          timeout: 15000,
+          headers: { "User-Agent": "Mozilla/5.0" }
         }
-      });
+      );
 
       const audioStreams = response.data?.audioStreams || [];
-      // Sort by bitrate, prefer highest quality
+      console.log(`[Piped] Got ${audioStreams.length} audio streams from ${instance}`);
       const sortedAudio = audioStreams
         .filter(s => s.mimeType?.includes("audio"))
         .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
 
       if (sortedAudio.length > 0) {
-        console.log(`Got audio URL from Piped: ${instance}`);
-        return { url: sortedAudio[0].url, type: "stream" };
+        console.log(`[Piped] ✓ Got audio from ${instance}`);
+        return { url: sortedAudio[0].url, source: "youtube" };
       }
     } catch (error) {
-      console.log(`Piped ${instance} failed: ${error.message}`);
-      errors.push(`Piped: ${error.message}`);
+      console.log(`[Piped] ✗ ${instance}: ${error.message}`);
+      errors.push(error.message);
     }
   }
 
-  // Method 2: Use Invidious API (YouTube frontend) to get audio stream
+  // Invidious instances - updated list
   const invidiousInstances = [
-    "https://invidious.jing.rocks",
-    "https://yewtu.be",
-    "https://vid.puffyan.us",
-    "https://invidious.snopyta.org"
+    "https://inv.nadeko.net",
+    "https://invidious.privacydev.net",
+    "https://invidious.slipfox.xyz"
   ];
 
   for (const instance of invidiousInstances) {
     try {
-      const apiUrl = `${instance}/api/v1/videos/${videoId}`;
-      console.log(`Trying Invidious: ${apiUrl}`);
-      const response = await axios.get(apiUrl, { 
-        timeout: 20000,
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-          "Accept": "application/json"
+      console.log(`[Invidious] Trying: ${instance}`);
+      const response = await axios.get(
+        `${instance}/api/v1/videos/${videoId}`,
+        { 
+          timeout: 15000,
+          headers: { "User-Agent": "Mozilla/5.0" }
         }
-      });
+      );
 
       const formats = response.data?.adaptiveFormats || [];
+      console.log(`[Invidious] Got ${formats.length} adaptive formats from ${instance}`);
       const audioFormats = formats
         .filter(f => f.type?.includes("audio"))
         .sort((a, b) => (b.bitrate || 0) - (a.bitrate || 0));
 
       if (audioFormats.length > 0) {
-        console.log(`Got audio URL from Invidious: ${instance}`);
-        return { url: audioFormats[0].url, type: "stream" };
+        console.log(`[Invidious] ✓ Got audio from ${instance}`);
+        return { url: audioFormats[0].url, source: "youtube" };
       }
     } catch (error) {
-      console.log(`Invidious ${instance} failed: ${error.message}`);
-      errors.push(`Invidious: ${error.message}`);
+      console.log(`[Invidious] ✗ ${instance}: ${error.message}`);
+      errors.push(error.message);
     }
   }
 
-  // Method 3: Try Cobalt with proper API key header
-  try {
-    console.log("Trying Cobalt API with proper headers...");
-    const response = await axios.post(
-      "https://api.cobalt.tools/",
-      {
-        url: videoUrl,
-        aFormat: "mp3",
-        isAudioOnly: true,
-        audioBitrate: "320"
-      },
-      {
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0"
-        },
-        timeout: 30000
+  console.log(`[YouTube] ✗ All instances failed`);
+  return null;
+}
+
+// Main function to get audio URL from multiple sources
+async function getAudioUrl(metadata, videoId) {
+  const { title, artist, spotifyId } = metadata;
+  
+  // Try multiple sources in parallel for speed
+  console.log("Searching multiple audio sources...");
+  
+  const results = await Promise.allSettled([
+    searchSpotifyPreview(title, artist, spotifyId),
+    searchDeezer(title, artist),
+    searchJioSaavn(title, artist),
+    searchSpotisaver(title, artist),
+    getYouTubeUrl(videoId)
+  ]);
+
+  console.log(`[Audio Sources Summary]`);
+  console.log(`  Spotify Preview: ${results[0].status === "fulfilled" ? (results[0].value ? "✓ Found" : "✗ Not found") : "✗ Error"}`);
+  console.log(`  Deezer: ${results[1].status === "fulfilled" ? (results[1].value ? "✓ Found" : "✗ Not found") : "✗ Error"}`);
+  console.log(`  JioSaavn: ${results[2].status === "fulfilled" ? (results[2].value ? "✓ Found" : "✗ Not found") : "✗ Error"}`);
+  console.log(`  Spotisaver: ${results[3].status === "fulfilled" ? (results[3].value ? "✓ Found" : "✗ Not found") : "✗ Error"}`);
+  console.log(`  YouTube: ${results[4].status === "fulfilled" ? (results[4].value ? "✓ Found" : "✗ Not found") : "✗ Error"}`);
+  
+  if (results[0].reason) console.log(`  Spotify Preview error: ${results[0].reason.message}`);
+  if (results[1].reason) console.log(`  Deezer error: ${results[1].reason.message}`);
+  if (results[2].reason) console.log(`  JioSaavn error: ${results[2].reason.message}`);
+  if (results[3].reason) console.log(`  Spotisaver error: ${results[3].reason.message}`);
+  if (results[4].reason) console.log(`  YouTube error: ${results[4].reason.message}`);
+
+  // Check results in order of preference (full songs first, previews last)
+  for (const result of results) {
+    if (result.status === "fulfilled" && result.value?.url) {
+      // Skip Spotify/Deezer preview if we have better options
+      if (result.value.source === "spotify-preview" || result.value.source === "deezer-preview") {
+        continue; // Try other sources first
       }
-    );
-
-    if (response.data?.url) {
-      console.log("Got download URL from Cobalt");
-      return { url: response.data.url, type: "direct" };
+      console.log(`Using audio source: ${result.value.source}`);
+      return result.value;
     }
-  } catch (error) {
-    console.log(`Cobalt failed: ${error.message}`);
-    errors.push(`Cobalt: ${error.message}`);
   }
 
-  throw new Error(`All download methods failed: ${errors.slice(0, 3).join("; ")}`);
+  // If only preview is available, use it as last resort
+  for (const result of results) {
+    if (result.status === "fulfilled" && result.value?.url) {
+      console.log(`Using audio source (fallback to preview): ${result.value.source}`);
+      return result.value;
+    }
+  }
+
+  throw new Error("Could not find audio from any source. The song may not be available for download.");
 }
 
 // Download audio from YouTube and convert to MP3
@@ -192,37 +354,37 @@ export async function downloadAndConvert(
   onProgress
 ) {
   const { videoId } = youtubeMatch;
-  const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
   console.log(`Starting download for video: ${videoId}`);
-  console.log(`Video URL: ${videoUrl}`);
+  console.log(`Song: ${metadata.title} by ${metadata.artist}`);
 
-  // Use sanitized title for filename, fallback to jobId if title is missing
-  const safeTitle = metadata.title ? sanitizeFilename(metadata.title) : jobId;
-  // Use jobId for the actual file to avoid path issues, rename later
   const outputPath = path.join(TEMP_PATH, `${jobId}.mp3`);
-  const tempAudioPath = path.join(TEMP_PATH, `${jobId}_temp.webm`);
+  const tempAudioPath = path.join(TEMP_PATH, `${jobId}_temp.audio`);
 
   try {
     onProgress(10);
 
-    console.log("Getting download URL...");
+    console.log("Searching multiple audio sources...");
 
-    // Get download URL using multiple methods
-    const downloadInfo = await getDownloadUrl(videoUrl, videoId);
+    // Get audio URL from multiple sources (JioSaavn, SoundCloud, YouTube)
+    const audioInfo = await getAudioUrl(metadata, videoId);
     
     onProgress(30);
-    console.log(`Downloading audio file (type: ${downloadInfo.type})...`);
+    console.log(`Downloading from ${audioInfo.source}...`);
 
     // Download the audio file
     const response = await axios({
       method: "GET",
-      url: downloadInfo.url,
+      url: audioInfo.url,
       responseType: "stream",
       timeout: 120000,
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-      }
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "*/*",
+        "Accept-Encoding": "identity",
+        "Connection": "keep-alive"
+      },
+      maxRedirects: 5
     });
 
     // Write to temp file
@@ -234,22 +396,24 @@ export async function downloadAndConvert(
     });
 
     console.log("Download complete!");
-    onProgress(70);
+    onProgress(60);
 
-    // Check if we need to convert or just rename
+    // Check file size
     const fileSize = fs.statSync(tempAudioPath).size;
-    if (fileSize < 1000) {
-      throw new Error("Downloaded file is too small, download may have failed");
+    if (fileSize < 10000) {
+      throw new Error("Downloaded file is too small, may have failed");
     }
 
-    // Ensure it's proper MP3 format with ffmpeg
+    console.log(`Downloaded ${(fileSize / 1024 / 1024).toFixed(2)} MB, converting to MP3...`);
+
+    // Convert to proper MP3 format with ffmpeg
     await new Promise((resolve, reject) => {
       ffmpegLib(tempAudioPath)
         .audioBitrate(320)
         .audioCodec("libmp3lame")
         .toFormat("mp3")
         .on("progress", (progress) => {
-          const percent = Math.floor(70 + (progress.percent || 0) * 0.2);
+          const percent = Math.floor(60 + (progress.percent || 0) * 0.3);
           onProgress(Math.min(percent, 90));
         })
         .on("error", (err) => {
@@ -257,7 +421,7 @@ export async function downloadAndConvert(
           reject(err);
         })
         .on("end", () => {
-          console.log("MP3 processing complete!");
+          console.log("MP3 conversion complete!");
           resolve();
         })
         .save(outputPath);
@@ -284,18 +448,9 @@ export async function downloadAndConvert(
     };
   } catch (error) {
     // Cleanup on error
-    if (fs.existsSync(tempAudioPath)) {
-      try {
-        fs.unlinkSync(tempAudioPath);
-      } catch (e) {
-        // Ignore cleanup errors
-      }
-    }
-    if (fs.existsSync(outputPath)) {
-      try {
-        fs.unlinkSync(outputPath);
-      } catch (e) {
-        // Ignore cleanup errors
+    for (const file of [tempAudioPath, outputPath]) {
+      if (fs.existsSync(file)) {
+        try { fs.unlinkSync(file); } catch (e) { }
       }
     }
     throw error;

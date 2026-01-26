@@ -151,6 +151,7 @@ export async function getSpotifyMetadata(trackId) {
 
       const track = response.data;
       return {
+        spotifyId: trackId,
         title: track.name,
         artist: track.artists.map((a) => a.name).join(", "),
         album: track.album.name,
