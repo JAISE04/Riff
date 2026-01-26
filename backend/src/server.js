@@ -109,28 +109,45 @@ app.use(express.json({ limit: "1mb" }));
 app.use("/api", apiLimiter);
 app.use("/api/convert", convertLimiter);
 
-// Serve temporary files for download
-app.use(
-  "/downloads",
-  express.static(tempPath, {
-    setHeaders: (res, filePath) => {
-      const filename = path.basename(filePath);
-      if (filePath.endsWith(".mp3")) {
-        res.setHeader("Content-Type", "audio/mpeg");
-        res.setHeader(
-          "Content-Disposition",
-          `attachment; filename="${filename}"`
-        );
-      } else if (filePath.endsWith(".zip")) {
-        res.setHeader("Content-Type", "application/zip");
-        res.setHeader(
-          "Content-Disposition",
-          `attachment; filename="${filename}"`
-        );
-      }
-    },
-  })
-);
+// Custom download handler with proper filename
+app.get("/downloads/:filename", (req, res) => {
+  const { filename } = req.params;
+  const filePath = path.join(tempPath, filename);
+  
+  // Check if file exists
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({ error: "File not found" });
+  }
+
+  // Try to get the proper filename from job data
+  // Extract jobId from filename (remove extension)
+  const jobId = filename.replace(/\.(mp3|zip)$/, '');
+  const job = jobStore.get(jobId);
+  
+  // Use job's filename if available, otherwise use the original
+  let downloadFilename = filename;
+  if (job && job.filename) {
+    downloadFilename = job.filename;
+  }
+
+  // Set appropriate headers
+  if (filename.endsWith(".mp3")) {
+    res.setHeader("Content-Type", "audio/mpeg");
+  } else if (filename.endsWith(".zip")) {
+    res.setHeader("Content-Type", "application/zip");
+  }
+  
+  // Set Content-Disposition with proper filename (RFC 5987 encoding for non-ASCII)
+  const encodedFilename = encodeURIComponent(downloadFilename).replace(/['()]/g, escape).replace(/\*/g, '%2A');
+  res.setHeader(
+    "Content-Disposition",
+    `attachment; filename="${downloadFilename.replace(/[^\x20-\x7E]/g, '_')}"; filename*=UTF-8''${encodedFilename}`
+  );
+
+  // Stream the file
+  const fileStream = fs.createReadStream(filePath);
+  fileStream.pipe(res);
+});
 
 // API Routes
 app.use("/api", conversionRoutes);
